@@ -36,7 +36,7 @@ export class BiliIncentive extends plugin {
 
     const notifyGroup = e.isGroup ? e.group_id : 0
     createDefaultUserConfig(e.user_id, notifyGroup)
-    this.reply('[b站插件] 个人配置已创建。使用 #激励添加 <序号> <链接> 填入链接 | #B站帮助 查看详情')
+    this.reply('[b站插件] 个人配置已创建。使用 #激励添加 <序号> <链接> | #B站帮助 查看详情')
   }
 
   // ========== 链接管理 ==========
@@ -52,7 +52,9 @@ export class BiliIncentive extends plugin {
 
     let cfg = loadUserConfig(e.user_id)
     if (!cfg) {
-      return this.reply('[b站插件] 请先发送 #激励创建配置 创建个人配置')
+      // 无配置时自动从模板创建
+      const notifyGroup = e.isGroup ? e.group_id : 0
+      cfg = createDefaultUserConfig(e.user_id, notifyGroup)
     }
 
     // 解析序号和链接
@@ -99,16 +101,18 @@ export class BiliIncentive extends plugin {
     }
 
     const links = Array.isArray(cfg.links) ? cfg.links : []
+    const filled = links.filter(l => l && l.trim())
+    if (!filled.length) {
+      return this.reply('[b站插件] 您的激励配置为空，使用 #激励添加 <序号> <链接> 填入链接')
+    }
+
     const lines = ['[b站插件] 您的激励配置（每日1:00领取）']
     for (let i = 0; i < MAX_SLOTS; i++) {
-      const url = links[i] || ''
+      const url = (links[i] || '').trim()
+      if (!url) continue
       const idx = i + 1
       const taskId = url.match(/task_id=([^&\s]+)/)?.[1] || ''
-      if (url) {
-        lines.push(`  ${idx}. ${taskId ? `task_id=${taskId}` : url.slice(0, 50)}`)
-      } else {
-        lines.push(`  ${idx}. （空）`)
-      }
+      lines.push(`  ${idx}. ${taskId ? `task_id=${taskId}` : url.slice(0, 50)}`)
     }
 
     if (cfg.notifyGroup) {

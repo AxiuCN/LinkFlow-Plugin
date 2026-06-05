@@ -10,6 +10,9 @@ const whitelistPath = path.join(userCfgDir, 'whitelist.yaml')
 /** 固定槽位数 */
 const MAX_SLOTS = 13
 
+/** 默认配置模板路径 */
+const defaultCfgTemplate = path.join(pluginRoot, 'config', 'incentive_config', 'qq.yaml.example')
+
 // ========== 白名单 ==========
 
 /**
@@ -105,18 +108,32 @@ function saveUserConfig(qq, data) {
 }
 
 /**
- * 为指定 QQ 创建默认配置（13 个空槽位）
+ * 为指定 QQ 创建默认配置（从模板文件复制，保留注释）
  * @param {string|number} qq
  * @param {number} [notifyGroup]
  * @returns {object} 创建后的配置
  */
 function createDefaultUserConfig(qq, notifyGroup = 0) {
-  const cfg = {
-    links: Array(MAX_SLOTS).fill(''),
-    notifyGroup: notifyGroup || 0,
+  // 读取模板文件作为纯文本，保留 YAML 注释
+  let content = 'links: []\nnotifyGroup: 0\n'
+  try {
+    if (fs.existsSync(defaultCfgTemplate)) {
+      content = fs.readFileSync(defaultCfgTemplate, 'utf8')
+    }
+  } catch (e) {
+    logger.warn('[Bilibili-Plugin] 读取配置模板失败，使用默认:', e)
   }
-  saveUserConfig(qq, cfg)
-  return cfg
+
+  // 替换 notifyGroup
+  const ng = notifyGroup || 0
+  content = content.replace(/^notifyGroup:\s*\d+/m, `notifyGroup: ${ng}`)
+
+  // 写入文件
+  fs.mkdirSync(userCfgDir, { recursive: true })
+  fs.writeFileSync(userCfgPath(qq), content, 'utf8')
+
+  // 返回解析后的对象以供内存使用
+  return normalizeUserConfig(YAML.parse(content))
 }
 
 /**
