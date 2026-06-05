@@ -1,6 +1,7 @@
 import fs from 'node:fs'
 import path from 'node:path'
 import YAML from 'yaml'
+import { loadUserConfig, saveUserConfig, listUserConfigs, MAX_SLOTS } from './components/IncentiveConfig.js'
 
 const pluginRoot = path.join(process.cwd(), 'plugins/Bilibili-Plugin')
 
@@ -133,11 +134,43 @@ export function supportGuoba() {
           required: true,
           componentProps: { min: 3, max: 60, defaultValue: 10 },
         },
+
+        // ==================== 用户配置列表 ====================
+        {
+          field: 'incentive.users',
+          label: '用户配置',
+          component: 'GSubForm',
+          componentProps: {
+            multiple: true,
+            schemas: [
+              { field: 'qq', label: 'QQ', component: 'Input', required: true,
+                componentProps: { placeholder: 'QQ号' } },
+              { field: 'notifyGroup', label: '通知群', component: 'InputNumber',
+                componentProps: { min: 0, placeholder: '0=不通知' } },
+              ...Array.from({ length: MAX_SLOTS }, (_, i) => ({
+                field: `link${i + 1}`,
+                label: `槽位${i + 1}`,
+                component: 'Input',
+                componentProps: { placeholder: '活动链接（含 task_id）' },
+              })),
+            ],
+          },
+        },
       ],
 
       getConfigData() {
         const userCfg = parseYaml(configPath)
         const claim = userCfg.incentive?.claim || {}
+
+        const userList = listUserConfigs().map(qq => {
+          const cfg = loadUserConfig(qq) || { links: [], notifyGroup: 0 }
+          const links = Array.isArray(cfg.links) ? cfg.links : []
+          const entry = { qq, notifyGroup: cfg.notifyGroup || 0 }
+          for (let i = 0; i < MAX_SLOTS; i++) {
+            entry[`link${i + 1}`] = links[i] || ''
+          }
+          return entry
+        })
 
         return {
           'login.pollTimeout': userCfg.login?.pollTimeout ?? mainDefaults.login_pollTimeout,
@@ -148,6 +181,7 @@ export function supportGuoba() {
           'incentive.claim.maxRetry': claim.maxRetry ?? mainDefaults.incentive_claim_maxRetry,
           'incentive.claim.retryInterval': claim.retryInterval ?? mainDefaults.incentive_claim_retryInterval,
           'incentive.claim.timeout': claim.timeout ?? mainDefaults.incentive_claim_timeout,
+          'incentive.users': userList,
         }
       },
 
@@ -155,12 +189,21 @@ export function supportGuoba() {
         try {
           const values = { ...mainDefaults }
           for (const [key, val] of Object.entries(data)) {
+            if (key.startsWith('incentive.users')) continue
             values[key.replace('.', '_')] = val
           }
           const content = generateConfig(defaultConfigPath, values)
           const dir = path.dirname(configPath)
           if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true })
           fs.writeFileSync(configPath, content, 'utf8')
+
+          const users = data['incentive.users'] || []
+          for (const entry of users) {
+            if (!entry.qq) continue
+            const links = Array.from({ length: MAX_SLOTS }, (_, i) => entry[`link${i + 1}`] || '')
+            saveUserConfig(String(entry.qq), { links, notifyGroup: entry.notifyGroup || 0 })
+          }
+
           return Result.ok({}, '保存成功~')
         } catch (e) {
           logger.error('[Bilibili-Plugin] 保存配置失败:', e)
