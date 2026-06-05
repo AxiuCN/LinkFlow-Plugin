@@ -31,9 +31,7 @@ export class BiliLogin extends plugin {
     loginCooldowns.set(e.user_id, Date.now())
 
     try {
-      await this.reply('[b站插件] 正在生成登录二维码...')
-
-      // 扫码登录（qrcodeKey 用于回调中渲染 QR 图片）
+      // 扫码登录，onQR 回调直接渲染并发送 QR 卡片
       await doLogin(e.user_id, {
         onQR: async (url) => {
           const img = await render('qrCode', 'index', {

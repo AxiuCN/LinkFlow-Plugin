@@ -2,7 +2,6 @@ import fetch from 'node-fetch'
 import {
   QRCODE_GENERATE_URL,
   QRCODE_POLL_URL,
-  NAV_URL,
   DEFAULT_USER_AGENT,
   LOGIN_POLL_TIMEOUT_SECONDS,
   LOGIN_POLL_INTERVAL_SECONDS,
@@ -78,24 +77,6 @@ async function startLogin(opts = {}) {
       if (pollData.url) {
         const qs = new URL(pollData.url)
         qs.searchParams.forEach((v, k) => { if (!cookies[k]) cookies[k] = v })
-      }
-      // 兜底：即使从 set-cookie/url 中未提取到 SESSDATA，
-      // 用当前累积的 cookie 调 NAV 确认登录态
-      if (!cookies.SESSDATA) {
-        try {
-          const ckStr = Object.entries(cookies).map(([k, v]) => `${k}=${v}`).join('; ')
-          const navRes = await fetch(NAV_URL, {
-            headers: { 'User-Agent': DEFAULT_USER_AGENT, Cookie: ckStr },
-          })
-          const navPayload = await navRes.json()
-          if (navPayload?.data?.isLogin) {
-            // NAV 确认已登录，从 set-cookie 中再捞一次
-            mergeCookies(cookies, navRes)
-          }
-        } catch {}
-      }
-      if (!cookies.SESSDATA) {
-        throw new Error('缺少参数，请重新扫描')
       }
       return cookies
     }
