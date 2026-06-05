@@ -1,9 +1,9 @@
 import { onCronTick } from '../components/IncentiveScheduler.js'
+import { getPluginConfig } from '../components/config.js'
 
 /**
- * 激励调度器 — 只注册 1 个定时任务
- * cron: 55 28,58 0,23 * * ?
- * 对应于每天 00:28:55 / 00:58:55 / 23:28:55 / 23:58:55
+ * 激励调度器 — 根据配置动态设定领取时间
+ * cron 表达式由 config.yaml 的 incentive.claimTime 决定
  */
 export class BiliSchedule extends plugin {
   constructor() {
@@ -15,10 +15,17 @@ export class BiliSchedule extends plugin {
       rule: [],
     })
 
+    // 从配置读取领取时间，动态生成 cron
+    const config = getPluginConfig()
+    const claimTime = config?.incentive?.claimTime || '01:00'
+    const [hour, minute] = claimTime.split(':').map(Number)
+    const hh = Math.min(23, Math.max(0, isNaN(hour) ? 1 : hour))
+    const mm = Math.min(59, Math.max(0, isNaN(minute) ? 0 : minute))
+
     this.task = {
       name: 'biliIncentiveSchedule',
       fnc: () => this.tick(),
-      cron: '55 28,58 0,23 * * ?',
+      cron: `${0} ${mm} ${hh} * * ?`,
       log: false,
     }
   }

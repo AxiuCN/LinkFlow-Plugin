@@ -11,6 +11,9 @@ const defaultConfigPath = path.join(pluginRoot, 'defSet', 'config.yaml')
 
 const mainDefaults = {
   login_pollTimeout: 180,
+  incentive_enabled: true,
+  incentive_claimTime: '01:00',
+  incentive_claimDeadline: 40,
   incentive_claim_threadCount: 2,
   incentive_claim_maxRetry: 30,
   incentive_claim_retryInterval: 1.0,
@@ -41,18 +44,6 @@ function parseYaml(path) {
   return {}
 }
 
-// ========== 激励配置（incentive_config.yaml）==========
-
-const incentiveCfgPath = path.join(pluginRoot, 'config', 'incentive_config.yaml')
-const incentiveTemplatePath = path.join(pluginRoot, 'defSet', 'incentive_config', 'qq.yaml')
-
-const incentiveDefaults = {
-  incentive_time_1: '23:29',
-  incentive_time_2: '23:59',
-  incentive_time_3: '00:29',
-  incentive_time_4: '00:59',
-}
-
 export function supportGuoba() {
   return {
     pluginInfo: {
@@ -81,8 +72,35 @@ export function supportGuoba() {
           componentProps: { min: 30, max: 600, defaultValue: 180 },
         },
 
-        // ==================== 激励计划·领取设置 ====================
-        { label: '激励计划·领取设置', component: 'SOFT_GROUP_BEGIN' },
+        // ==================== 激励计划 ====================
+        { label: '激励计划', component: 'SOFT_GROUP_BEGIN' },
+        {
+          field: 'incentive.enabled',
+          label: '每日领取开关',
+          helpMessage: '是否开启每日自动领取激励奖励',
+          bottomHelpMessage: '领取时间由下方"领取时间"字段控制',
+          component: 'Switch',
+          required: true,
+          componentProps: { defaultValue: true },
+        },
+        {
+          field: 'incentive.claimTime',
+          label: '领取时间',
+          helpMessage: '每天自动领取的时间（HH:mm 格式）',
+          bottomHelpMessage: '例如 01:00 表示每天凌晨1点执行',
+          component: 'Input',
+          required: true,
+          componentProps: { placeholder: 'HH:mm', defaultValue: '01:00' },
+        },
+        {
+          field: 'incentive.claimDeadline',
+          label: '全局截止（秒）',
+          helpMessage: '所有用户的总领取时间上限',
+          bottomHelpMessage: '到达此时间后取消剩余任务，0=不限时，默认 40',
+          component: 'InputNumber',
+          required: true,
+          componentProps: { min: 0, max: 300, defaultValue: 40 },
+        },
         {
           field: 'incentive.claim.threadCount',
           label: '并发线程数',
@@ -115,81 +133,34 @@ export function supportGuoba() {
           required: true,
           componentProps: { min: 3, max: 60, defaultValue: 10 },
         },
-
-        // ==================== 激励计划·默认时段 ====================
-        { label: '激励计划·默认时段', component: 'SOFT_GROUP_BEGIN' },
-        {
-          field: 'incentive.time_1',
-          label: '时段 1',
-          bottomHelpMessage: '新用户创建配置时的默认触发时间',
-          component: 'Input',
-          required: true,
-          componentProps: { placeholder: 'HH:mm' },
-        },
-        {
-          field: 'incentive.time_2',
-          label: '时段 2',
-          component: 'Input',
-          required: true,
-          componentProps: { placeholder: 'HH:mm' },
-        },
-        {
-          field: 'incentive.time_3',
-          label: '时段 3',
-          component: 'Input',
-          required: true,
-          componentProps: { placeholder: 'HH:mm' },
-        },
-        {
-          field: 'incentive.time_4',
-          label: '时段 4',
-          component: 'Input',
-          required: true,
-          componentProps: { placeholder: 'HH:mm' },
-        },
       ],
 
       getConfigData() {
         const userCfg = parseYaml(configPath)
         const claim = userCfg.incentive?.claim || {}
 
-        const incentiveCfg = parseYaml(incentiveCfgPath)
-        const triggers = (incentiveCfg.defaultTrigger || []).map(t => t.time)
-
         return {
           'login.pollTimeout': userCfg.login?.pollTimeout ?? mainDefaults.login_pollTimeout,
+          'incentive.enabled': userCfg.incentive?.enabled ?? mainDefaults.incentive_enabled,
+          'incentive.claimTime': userCfg.incentive?.claimTime ?? mainDefaults.incentive_claimTime,
+          'incentive.claimDeadline': userCfg.incentive?.claimDeadline ?? mainDefaults.incentive_claimDeadline,
           'incentive.claim.threadCount': claim.threadCount ?? mainDefaults.incentive_claim_threadCount,
           'incentive.claim.maxRetry': claim.maxRetry ?? mainDefaults.incentive_claim_maxRetry,
           'incentive.claim.retryInterval': claim.retryInterval ?? mainDefaults.incentive_claim_retryInterval,
           'incentive.claim.timeout': claim.timeout ?? mainDefaults.incentive_claim_timeout,
-          'incentive.time_1': triggers[0] ?? incentiveDefaults.incentive_time_1,
-          'incentive.time_2': triggers[1] ?? incentiveDefaults.incentive_time_2,
-          'incentive.time_3': triggers[2] ?? incentiveDefaults.incentive_time_3,
-          'incentive.time_4': triggers[3] ?? incentiveDefaults.incentive_time_4,
         }
       },
 
       setConfigData(data, { Result }) {
         try {
-          // 生成主配置
-          const mainValues = { ...mainDefaults }
+          const values = { ...mainDefaults }
           for (const [key, val] of Object.entries(data)) {
-            mainValues[key.replace('.', '_')] = val
+            values[key.replace('.', '_')] = val
           }
-          const mainContent = generateConfig(defaultConfigPath, mainValues)
+          const content = generateConfig(defaultConfigPath, values)
           const dir = path.dirname(configPath)
           if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true })
-          fs.writeFileSync(configPath, mainContent, 'utf8')
-
-          // 生成激励全局配置
-          const incentiveValues = { ...incentiveDefaults }
-          incentiveValues.incentive_time_1 = data['incentive.time_1'] ?? incentiveDefaults.incentive_time_1
-          incentiveValues.incentive_time_2 = data['incentive.time_2'] ?? incentiveDefaults.incentive_time_2
-          incentiveValues.incentive_time_3 = data['incentive.time_3'] ?? incentiveDefaults.incentive_time_3
-          incentiveValues.incentive_time_4 = data['incentive.time_4'] ?? incentiveDefaults.incentive_time_4
-          const incentiveContent = generateConfig(incentiveTemplatePath, incentiveValues)
-          fs.writeFileSync(incentiveCfgPath, incentiveContent, 'utf8')
-
+          fs.writeFileSync(configPath, content, 'utf8')
           return Result.ok({}, '保存成功~')
         } catch (e) {
           logger.error('[Bilibili-Plugin] 保存配置失败:', e)

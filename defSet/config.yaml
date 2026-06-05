@@ -10,6 +10,12 @@ login:
 
 # B站激励计划（apps/incentive.js）
 incentive:
+  # ---------- 全局开关 ----------
+  enabled: ${incentive_enabled}
+  # ---------- 每日领取时间（HH:mm）----------
+  claimTime: ${incentive_claimTime}
+  # ---------- 全局截止时间（秒），0=不限 ----------
+  claimDeadline: ${incentive_claimDeadline}
   # ---------- 领取设置 ----------
   claim:
     # 并发领取线程数（同时发送请求的 worker 数量）

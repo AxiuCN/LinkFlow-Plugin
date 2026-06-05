@@ -1,24 +1,23 @@
 # 个人兑换配置
-# 文件名: {QQ}.xxx，如 123456.xxx
+# 文件名: {QQ}.yaml
 # 可通过 #激励创建配置 从默认配置生成
-
-# triggers: 触发时段列表
-#   time:   触发时间（时:分，24h 格式）
-#   links:  该时段要抢的链接列表（按顺序从上到下执行）
-#     url:    活动链接（含 task_id）
-#     expire: 有效期（YYYY-MM-DD），过期自动跳过
-
+# 每日 1:00 自动领取非空槽位内的链接
+#
+# links: 固定 13 个槽位，填入活动链接（需含 task_id）
 # notifyGroup: 通知群号（0 表示不通知）
 
-triggers:
-  - time: "23:29"
-    links:
-      - url: ""
-        expire: "2026-06-10"
-  - time: "23:59"
-    links: []
-  - time: "00:29"
-    links: []
-  - time: "00:59"
-    links: []
 notifyGroup: 0
+links:
+  - ""
+  - ""
+  - ""
+  - ""
+  - ""
+  - ""
+  - ""
+  - ""
+  - ""
+  - ""
+  - ""
+  - ""
+  - ""

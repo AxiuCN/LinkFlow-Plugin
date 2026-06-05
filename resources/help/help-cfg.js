@@ -14,10 +14,10 @@ export const helpList = [
   {
     group: '激励计划',
     list: [
-      { icon: 75, title: '#激励创建配置', desc: '生成个人兑换配置' },
-      { icon: 87, title: '#激励添加 <链接>', desc: '添加兑换链接' },
-      { icon: 80, title: '#激励列表', desc: '查看个人配置' },
-      { icon: 92, title: '#激励删除 <编号>', desc: '删除指定链接' }
+      { icon: 75, title: '#激励创建配置', desc: '生成个人配置' },
+      { icon: 87, title: '#激励添加 <序号> <链接>', desc: '填入槽位（1-13）' },
+      { icon: 80, title: '#激励列表', desc: '查看13槽位状态' },
+      { icon: 92, title: '#激励删除 <序号>', desc: '清空指定槽位（1-13）' }
     ]
   },
   {

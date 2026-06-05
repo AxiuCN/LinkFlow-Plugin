@@ -237,7 +237,7 @@ class BiliClient {
           }
 
           if (logCb) logCb(`[领取-提交] worker=${id} attempt=${attempt} code=${code} msg=${message}`)
-          errLog.push(`w${id}-${attempt}: code=${code}`)
+          errLog.push(`w${id}-${attempt}: code=${code} msg=${message}`)
         } catch (e) {
           if (e instanceof BiliCookieInvalidError || e instanceof BiliRewardCancelledError) throw e
           if (logCb) logCb(`[领取-提交] 异常 worker=${id} attempt=${attempt}: ${e.message}`)

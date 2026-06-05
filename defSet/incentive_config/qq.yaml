@@ -1,14 +1,20 @@
 # ==============================================================
-# 全局默认激励配置模板
-# 变量占位符将被锅巴后台或 generateConfig 替换
+# 激励配置模板（开发者维护，用户勿改）
+# 每个用户独立存储于 config/incentive_config/{qq}.yaml
 # ==============================================================
 
-defaultTrigger:
-  - time: ${incentive_time_1}
-    links: []
-  - time: ${incentive_time_2}
-    links: []
-  - time: ${incentive_time_3}
-    links: []
-  - time: ${incentive_time_4}
-    links: []
+notifyGroup: 0
+links:
+  - ""
+  - ""
+  - ""
+  - ""
+  - ""
+  - ""
+  - ""
+  - ""
+  - ""
+  - ""
+  - ""
+  - ""
+  - ""

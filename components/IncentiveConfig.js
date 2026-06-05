@@ -4,34 +4,11 @@ import YAML from 'yaml'
 import { pluginRoot } from './constants.js'
 
 /** 路径常量 */
-const globalCfgPath = path.join(pluginRoot, 'config', 'incentive_config.yaml')
 const userCfgDir = path.join(pluginRoot, 'config', 'incentive_config')
 const whitelistPath = path.join(userCfgDir, 'whitelist.yaml')
 
-// ========== 全局默认配置 ==========
-
-/**
- * 读取全局默认配置
- * @returns {object}
- */
-function loadGlobalConfig() {
-  try {
-    if (!fs.existsSync(globalCfgPath)) return { defaultTrigger: [] }
-    return YAML.parse(fs.readFileSync(globalCfgPath, 'utf8')) || { defaultTrigger: [] }
-  } catch (e) {
-    logger.error('[Bilibili-Plugin] 读取全局激励配置失败:', e)
-    return { defaultTrigger: [] }
-  }
-}
-
-/**
- * 写入全局默认配置
- * @param {object} data
- */
-function saveGlobalConfig(data) {
-  fs.mkdirSync(path.dirname(globalCfgPath), { recursive: true })
-  fs.writeFileSync(globalCfgPath, YAML.stringify(data, null, 2), 'utf8')
-}
+/** 固定槽位数 */
+const MAX_SLOTS = 13
 
 // ========== 白名单 ==========
 
@@ -88,7 +65,7 @@ function userCfgPath(qq) {
 /**
  * 读取指定 QQ 的个人配置
  * @param {string|number} qq
- * @returns {object|null} { triggers: [...], notifyGroup: number } 或 null
+ * @returns {object|null} { links: string[13], notifyGroup: number } 或 null
  */
 function loadUserConfig(qq) {
   try {
@@ -102,28 +79,40 @@ function loadUserConfig(qq) {
 }
 
 /**
+ * 确保配置包含 13 个槽位，不足补空串，超长截断
+ * @param {object} data
+ * @returns {object}
+ */
+function normalizeUserConfig(data) {
+  const links = Array.isArray(data?.links) ? [...data.links] : []
+  while (links.length < MAX_SLOTS) links.push('')
+  links.length = MAX_SLOTS
+  return {
+    links,
+    notifyGroup: data?.notifyGroup || 0,
+  }
+}
+
+/**
  * 写入指定 QQ 的个人配置
  * @param {string|number} qq
  * @param {object} data
  */
 function saveUserConfig(qq, data) {
   fs.mkdirSync(userCfgDir, { recursive: true })
-  fs.writeFileSync(userCfgPath(qq), YAML.stringify(data, null, 2), 'utf8')
+  const normalized = normalizeUserConfig(data)
+  fs.writeFileSync(userCfgPath(qq), YAML.stringify(normalized, null, 2), 'utf8')
 }
 
 /**
- * 为指定 QQ 创建默认配置（从全局默认模板复制）
+ * 为指定 QQ 创建默认配置（13 个空槽位）
  * @param {string|number} qq
  * @param {number} [notifyGroup]
  * @returns {object} 创建后的配置
  */
 function createDefaultUserConfig(qq, notifyGroup = 0) {
-  const global = loadGlobalConfig()
   const cfg = {
-    triggers: (global.defaultTrigger || []).map(t => ({
-      time: t.time,
-      links: [],
-    })),
+    links: Array(MAX_SLOTS).fill(''),
     notifyGroup: notifyGroup || 0,
   }
   saveUserConfig(qq, cfg)
@@ -146,4 +135,4 @@ function listUserConfigs() {
   }
 }
 
-export { loadGlobalConfig, saveGlobalConfig, loadWhitelist, saveWhitelist, isWhitelisted, loadUserConfig, saveUserConfig, createDefaultUserConfig, listUserConfigs, userCfgDir }
+export { MAX_SLOTS, loadWhitelist, saveWhitelist, isWhitelisted, loadUserConfig, saveUserConfig, createDefaultUserConfig, listUserConfigs, userCfgDir }

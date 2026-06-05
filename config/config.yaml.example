@@ -10,12 +10,18 @@ login:
 
 # B站激励计划（apps/incentive.js）
 incentive:
+  # ---------- 全局开关 ----------
+  enabled: true
+  # ---------- 每日领取时间（HH:mm）----------
+  claimTime: "01:00"
+  # ---------- 全局截止时间（秒），0=不限 ----------
+  claimDeadline: 40
   # ---------- 领取设置 ----------
   claim:
     # 并发领取线程数（同时发送请求的 worker 数量，建议 2-5）
     threadCount: 2
     # 单个 worker 最大重试次数
-    maxRetry: 120
+    maxRetry: 30
     # 重试间隔（秒）
     retryInterval: 1.0
     # 单次请求超时（秒）

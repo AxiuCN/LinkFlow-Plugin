@@ -1,6 +1,9 @@
 # 运行时数据（含敏感 cookie）
 data/
 
+# 运行日志
+logs/
+
 # 用户本地配置（仅 .example 可上传）
 config/*.yaml
 config/incentive_config/*.yaml

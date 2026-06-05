@@ -1,4 +1,4 @@
-import { loadUserConfig, saveUserConfig, createDefaultUserConfig, loadWhitelist, saveWhitelist, isWhitelisted } from '../components/IncentiveConfig.js'
+import { loadUserConfig, saveUserConfig, createDefaultUserConfig, loadWhitelist, saveWhitelist, isWhitelisted, MAX_SLOTS } from '../components/IncentiveConfig.js'
 
 export class BiliIncentive extends plugin {
   constructor() {
@@ -9,9 +9,9 @@ export class BiliIncentive extends plugin {
       priority: 500,
       rule: [
         { reg: /^#激励(创建|生成)配置$/i, fnc: 'cmdCreateConfig' },
-        { reg: /^#激励添加\s+/i, fnc: 'cmdAddLink' },
+        { reg: /^#激励添加\s+\d{1,2}\s+/i, fnc: 'cmdAddLink' },
         { reg: /^#激励列表$/i, fnc: 'cmdListLinks' },
-        { reg: /^#激励删除/i, fnc: 'cmdRemoveLink' },
+        { reg: /^#激励删除\s+\d{1,2}$/i, fnc: 'cmdRemoveLink' },
         { reg: /^#(添加|增加)激励白名单\s*/i, fnc: 'cmdAddWhitelist' },
         { reg: /^#(删除|移除)激励白名单\s*/i, fnc: 'cmdRemoveWhitelist' },
         { reg: /^#激励白名单$/i, fnc: 'cmdWhitelist' },
@@ -22,7 +22,7 @@ export class BiliIncentive extends plugin {
   // ========== 配置创建 ==========
 
   /**
-   * #激励创建配置 — 为当前 QQ 生成个人配置（从全局默认复制）
+   * #激励创建配置 — 为当前 QQ 生成个人配置（13 个空槽位）
    */
   async cmdCreateConfig(e) {
     if (!isWhitelisted(e.user_id) && !e.isMaster) {
@@ -36,15 +36,14 @@ export class BiliIncentive extends plugin {
 
     const notifyGroup = e.isGroup ? e.group_id : 0
     createDefaultUserConfig(e.user_id, notifyGroup)
-    this.reply(`[b站插件] 个人配置已创建。使用 #激励添加 <链接> 添加兑换链接 | #B站帮助 查看详情`)
+    this.reply('[b站插件] 个人配置已创建。使用 #激励添加 <序号> <链接> 填入链接 | #B站帮助 查看详情')
   }
 
   // ========== 链接管理 ==========
 
   /**
-   * #激励添加 <链接> — 向当前用户的个人配置添加链接
-   * 格式: #激励添加 <链接>
-   * 可选从 #激励列表 中的编号后追加: #激励添加 <编号> <链接>
+   * #激励添加 <序号> <链接> — 填入指定槽位
+   * 序号 1-13，覆盖旧值
    */
   async cmdAddLink(e) {
     if (!isWhitelisted(e.user_id) && !e.isMaster) {
@@ -56,18 +55,19 @@ export class BiliIncentive extends plugin {
       return this.reply('[b站插件] 请先发送 #激励创建配置 创建个人配置')
     }
 
-    // 解析参数: 可能的格式 "23:29 <链接>" 或纯链接
+    // 解析序号和链接
     const raw = e.msg.replace(/^#激励添加\s*/i, '').trim()
-    // 尝试匹配 "时间 链接" 格式
-    let time = null
-    let urlPart = raw
-    const timeMatch = raw.match(/^(\d{1,2}:\d{2})\s+(.*)/)
-    if (timeMatch) {
-      time = timeMatch[1].padStart(5, '0')
-      urlPart = timeMatch[2].trim()
+    const parts = raw.split(/\s+/)
+    const slot = parseInt(parts[0])
+    if (slot < 1 || slot > MAX_SLOTS) {
+      return this.reply(`[b站插件] 序号无效，请输入 1-${MAX_SLOTS}`)
+    }
+    const urlPart = parts.slice(1).join('')
+    if (!urlPart) {
+      return this.reply(`[b站插件] 请提供链接，格式: #激励添加 ${slot} <链接>`)
     }
 
-    // 提取 task_id
+    // 提取 task_id 验证链接有效性
     let taskId = null
     try { taskId = new URL(urlPart).searchParams.get('task_id') } catch {}
     if (!taskId) {
@@ -78,71 +78,36 @@ export class BiliIncentive extends plugin {
       return this.reply('[b站插件] 未能从链接中提取 task_id')
     }
 
-    // 如果没指定时间，尝试自动匹配到下一个有效时段
-    if (!time) {
-      const now = new Date()
-      const hh = now.getHours()
-      const mm = now.getMinutes()
-      // 找最近的未来时段
-      const slots = cfg.triggers || []
-      const sorted = slots.filter(s => {
-        const [sh, sm] = s.time.split(':').map(Number)
-        return sh > hh || (sh === hh && sm >= mm)
-      })
-      if (sorted.length > 0) {
-        time = sorted[0].time
-      } else if (slots.length > 0) {
-        time = slots[0].time
-      }
-    }
+    // 确保 links 数组长度足够
+    const links = Array.isArray(cfg.links) ? [...cfg.links] : Array(MAX_SLOTS).fill('')
+    while (links.length < MAX_SLOTS) links.push('')
 
-    if (!time) {
-      return this.reply('[b站插件] 请指定时段，格式: #激励添加 23:29 <链接>')
-    }
-
-    // 写入对应时段
-    let found = false
-    for (const t of cfg.triggers) {
-      if (t.time === time) {
-        // 去重
-        if (t.links.some(l => l.url === urlPart)) {
-          return this.reply(`[b站插件] 该链接已在时段 ${time} 中`)
-        }
-        t.links.push({ url: urlPart, expire: '' })
-        found = true
-        break
-      }
-    }
-
-    if (!found) {
-      cfg.triggers.push({ time, links: [{ url: urlPart, expire: '' }] })
-    }
+    links[slot - 1] = urlPart
+    cfg.links = links
 
     saveUserConfig(e.user_id, cfg)
-    this.reply(`[b站插件] 已添加到时段 ${time} | task_id=${taskId}`)
+    this.reply(`[b站插件] 已填入 槽位${slot} | task_id=${taskId}`)
   }
 
   /**
-   * #激励列表 — 查看当前用户的配置
+   * #激励列表 — 查看当前用户的 13 槽位配置
    */
   async cmdListLinks(e) {
     const cfg = loadUserConfig(e.user_id)
-    if (!cfg?.triggers?.length) {
+    if (!cfg) {
       return this.reply('[b站插件] 您还没有配置。发送 #激励创建配置 开始 | #B站帮助 查看详情')
     }
 
-    const now = new Date()
-    const lines = ['[b站插件] 您的激励配置']
-    for (const t of cfg.triggers) {
-      const validLinks = (t.links || []).filter(l => {
-        if (!l.expire) return true
-        return new Date(l.expire) >= now
-      })
-      if (validLinks.length === 0) continue
-      lines.push(`⌚ ${t.time} (${validLinks.length} 个链接)`)
-      for (let i = 0; i < validLinks.length; i++) {
-        const l = validLinks[i]
-        lines.push(`  ${i + 1}. ${l.url.slice(0, 60)}${l.expire ? ` [至${l.expire}]` : ''}`)
+    const links = Array.isArray(cfg.links) ? cfg.links : []
+    const lines = ['[b站插件] 您的激励配置（每日1:00领取）']
+    for (let i = 0; i < MAX_SLOTS; i++) {
+      const url = links[i] || ''
+      const idx = i + 1
+      const taskId = url.match(/task_id=([^&\s]+)/)?.[1] || ''
+      if (url) {
+        lines.push(`  ${idx}. ${taskId ? `task_id=${taskId}` : url.slice(0, 50)}`)
+      } else {
+        lines.push(`  ${idx}. （空）`)
       }
     }
 
@@ -153,52 +118,31 @@ export class BiliIncentive extends plugin {
   }
 
   /**
-   * #激励删除 <编号> — 从当前用户配置删除链接
-   * 格式: #激励删除 <时段> <序号>
+   * #激励删除 <序号> — 清空指定槽位
    */
   async cmdRemoveLink(e) {
     let cfg = loadUserConfig(e.user_id)
-    if (!cfg?.triggers?.length) {
+    if (!cfg) {
       return this.reply('[b站插件] 您还没有配置')
     }
 
     const raw = e.msg.replace(/^#激励删除\s*/i, '').trim()
-    // 格式: "23:29 1" 或 "1"
-    const parts = raw.split(/\s+/)
-
-    // 简单模式: 遍历所有时段找到第 N 个链接
-    if (parts.length === 1 && /^\d+$/.test(parts[0])) {
-      const idx = parseInt(parts[0]) - 1
-      let count = 0
-      for (const t of cfg.triggers) {
-        const links = t.links || []
-        if (idx < count + links.length) {
-          const linkIdx = idx - count
-          const removed = links.splice(linkIdx, 1)[0]
-          saveUserConfig(e.user_id, cfg)
-          return this.reply(`[b站插件] 已从 ${t.time} 删除: ${removed.url.slice(0, 40)}`)
-        }
-        count += links.length
-      }
-      return this.reply('[b站插件] 未找到该编号的链接')
+    const slot = parseInt(raw)
+    if (slot < 1 || slot > MAX_SLOTS) {
+      return this.reply(`[b站插件] 序号无效，请输入 1-${MAX_SLOTS}`)
     }
 
-    // 时段+序号模式: "23:29 1"
-    if (parts.length === 2) {
-      const [timeStr, numStr] = parts
-      if (/^\d{1,2}:\d{2}$/.test(timeStr) && /^\d+$/.test(numStr)) {
-        const t = cfg.triggers.find(x => x.time === timeStr.padStart(5, '0'))
-        if (!t) return this.reply(`[b站插件] 未找到时段 ${timeStr}`)
-        const idx = parseInt(numStr) - 1
-        const links = t.links || []
-        if (idx < 0 || idx >= links.length) return this.reply(`[b站插件] 时段 ${timeStr} 没有第 ${numStr} 个链接`)
-        const removed = links.splice(idx, 1)[0]
-        saveUserConfig(e.user_id, cfg)
-        return this.reply(`[b站插件] 已从 ${timeStr} 删除`)
-      }
+    const links = Array.isArray(cfg.links) ? [...cfg.links] : Array(MAX_SLOTS).fill('')
+    while (links.length < MAX_SLOTS) links.push('')
+
+    if (!links[slot - 1]) {
+      return this.reply(`[b站插件] 槽位${slot} 已经是空的`)
     }
 
-    this.reply('[b站插件] 格式: #激励删除 <时段> <序号> | 或 #激励删除 <序号>')
+    links[slot - 1] = ''
+    cfg.links = links
+    saveUserConfig(e.user_id, cfg)
+    this.reply(`[b站插件] 已清空 槽位${slot}`)
   }
 
   // ========== 白名单管理（主人） ==========
