@@ -4,7 +4,9 @@ body {
 }
 .container {
   width: 830px;
-  background: #1e2229;
+  background: url("../common/theme/bg-01.jpg") no-repeat;
+  background-size: cover;
+  background-position: top left;
 }
 .label {
   font-family: Number, "微软雅黑", sans-serif;
