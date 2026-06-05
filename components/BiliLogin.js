@@ -8,10 +8,10 @@ import {
 } from './constants.js'
 
 /**
- * 从 fetch Response 中提取 set-cookie 并合并到 cookies 对象
+ * 从 fetch Response 中提取 set-cookie 到 cookies 对象
+ * 兼容 node-fetch v2（raw）和 v3（getSetCookie）
  */
 function mergeCookies(cookies, response) {
-  // 兼容 node-fetch v2 (raw) 和 v3 (getSetCookie)
   let values = []
   if (typeof response.headers.getSetCookie === 'function') {
     values = response.headers.getSetCookie()
@@ -23,57 +23,43 @@ function mergeCookies(cookies, response) {
   }
   for (const header of values) {
     const match = header.match(/^([^=]+)=([^;]+)/)
-    if (match) {
-      cookies[match[1]] = match[2]
-    }
+    if (match) cookies[match[1]] = match[2]
   }
 }
 
 /**
- * 发起扫码登录流程，返回 cookies
- * @param {object} opts
- * @param {Function} [opts.onQR] — 收到二维码 url 后的回调，用于发送给用户
- * @param {Function} [opts.onStatus] — 状态变更回调 (msg)
- * @param {object} [opts.cancelSignal] — { cancelled: boolean }
- * @returns {Promise<object>} cookies
+ * 发起扫码登录流程，静默轮询，返回 cookies
+ * @param {object} [opts]
+ * @param {number} [opts.timeout] 轮询超时秒数
+ * @param {Function} [opts.onQR] 收到二维码 url 的回调，用于渲染图片
+ * @returns {Promise<object>} cookies 对象
  */
 async function startLogin(opts = {}) {
-  const { onQR, onStatus, cancelSignal } = opts
+  const timeout = opts.timeout || LOGIN_POLL_TIMEOUT_SECONDS
 
   // Step 1: 获取二维码
   const genRes = await fetch(QRCODE_GENERATE_URL, {
-    headers: {
-      'User-Agent': DEFAULT_USER_AGENT,
-      Referer: 'https://www.bilibili.com/',
-    },
+    headers: { 'User-Agent': DEFAULT_USER_AGENT, Referer: 'https://www.bilibili.com/' },
   })
   const genPayload = await genRes.json()
   if (genPayload?.code !== 0) {
-    throw new Error(`获取登录二维码失败: code=${genPayload?.code}`)
+    throw new Error(`获取登录二维码失败: ${genPayload?.message || genPayload?.code}`)
   }
-
   const data = genPayload?.data || {}
   const url = data.url
   const qrcodeKey = data.qrcode_key
-  if (!url || !qrcodeKey) {
-    throw new Error('登录二维码返回内容不完整')
-  }
+  if (!url || !qrcodeKey) throw new Error('登录二维码返回内容不完整')
 
-  // 从 generate 响应中提取初始 cookies
+  // 初始 cookies
   const cookies = {}
   mergeCookies(cookies, genRes)
 
-  if (onQR) onQR(url)
+  // 通知调用者二维码 URL（用于渲染美化图片）
+  if (opts.onQR) await opts.onQR(url)
 
-  // Step 2: 轮询扫码结果
-  const deadline = Date.now() + LOGIN_POLL_TIMEOUT_SECONDS * 1000
-  let lastStatus = null
-
+  // Step 2: 静默轮询（不发送中间状态消息）
+  const deadline = Date.now() + timeout * 1000
   while (Date.now() < deadline) {
-    if (cancelSignal?.cancelled) {
-      throw new Error('[登录] 已取消')
-    }
-
     const pollRes = await fetch(`${QRCODE_POLL_URL}?qrcode_key=${qrcodeKey}`, {
       headers: {
         'User-Agent': DEFAULT_USER_AGENT,
@@ -84,41 +70,25 @@ async function startLogin(opts = {}) {
     const pollPayload = await pollRes.json()
     const pollData = pollPayload?.data || {}
     const code = pollData.code
-
-    // 每次轮询都可能更新 cookie
     mergeCookies(cookies, pollRes)
 
-    if (code !== lastStatus) {
-      lastStatus = code
-      const msgs = {
-        86101: '[登录] 等待扫码...',
-        86090: '[登录] 已扫码，请确认登录',
-        86038: null,
-        0: '[登录] 扫码登录成功',
-      }
-      const msg = msgs[code]
-      if (msg && onStatus) onStatus(msg)
-      if (code === 86038) {
-        throw new Error('[登录] 二维码已过期，请重新发送 #激励登录')
-      }
-    }
-
+    // 扫码成功
     if (code === 0) {
-      // 从 poll 响应的跨域重定向 url 中提取额外 cookies
       if (pollData.url) {
-        // url 的 query 中可能含 SESSDATA 等
-        const redirectUrl = new URL(pollData.url)
-        redirectUrl.searchParams.forEach((value, key) => {
-          if (!cookies[key]) cookies[key] = value
-        })
+        const qs = new URL(pollData.url)
+        qs.searchParams.forEach((v, k) => { if (!cookies[k]) cookies[k] = v })
       }
       return cookies
+    }
+    // 二维码过期
+    if (code === 86038) {
+      throw new Error('二维码已过期，请重新发送 #B站登录')
     }
 
     await new Promise(r => setTimeout(r, LOGIN_POLL_INTERVAL_SECONDS * 1000))
   }
 
-  throw new Error('[登录] 扫码超时，请重新发送 #激励登录')
+  throw new Error('扫码登录超时，请重新发送 #B站登录')
 }
 
 export { startLogin }
