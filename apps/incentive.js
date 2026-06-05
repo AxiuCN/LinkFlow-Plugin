@@ -255,14 +255,8 @@ export class BiliIncentive extends plugin {
  * @returns {string|null}
  */
 function extractAtQQ(e) {
-  // 优先从消息段中取 @
-  if (e.message) {
-    for (const seg of e.message) {
-      if (seg.type === 'at' && seg.data?.qq) {
-        return String(seg.data.qq)
-      }
-    }
-  }
+  // loader.js 的 dealEvent 已将 @ 的 QQ 写入 e.at
+  if (e.at) return String(e.at)
   // 从纯文本的最后一段取数字
   const raw = e.msg.replace(/^#(添加|增加|删除|移除)激励白名单\s*/i, '').trim()
   if (/^\d+$/.test(raw)) return raw
