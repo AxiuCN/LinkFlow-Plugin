@@ -11,7 +11,7 @@ const whitelistPath = path.join(userCfgDir, 'whitelist.yaml')
 const MAX_SLOTS = 13
 
 /** 默认配置模板路径 */
-const defaultCfgTemplate = path.join(pluginRoot, 'config', 'incentive_config', 'qq.yaml.example')
+const defaultCfgTemplate = path.join(pluginRoot, 'config', 'incentive_config.yaml')
 
 // ========== 白名单 ==========
 
@@ -119,6 +119,12 @@ function createDefaultUserConfig(qq, notifyGroup = 0) {
   try {
     if (fs.existsSync(defaultCfgTemplate)) {
       content = fs.readFileSync(defaultCfgTemplate, 'utf8')
+    } else {
+      // 实际配置不存在时尝试 .example（gitignore 导致 clone 后缺失）
+      const examplePath = defaultCfgTemplate + '.example'
+      if (fs.existsSync(examplePath)) {
+        content = fs.readFileSync(examplePath, 'utf8')
+      }
     }
   } catch (e) {
     logger.warn('[Bilibili-Plugin] 读取配置模板失败，使用默认:', e)
