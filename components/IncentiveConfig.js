@@ -15,16 +15,20 @@ const userCfgTemplate = path.join(pluginRoot, 'config', 'incentive_config', 'qq.
 /** #激励创建配置 模板：incentive_config.yaml（运行时生成），.example 兜底 */
 const globalCfgTemplate = path.join(pluginRoot, 'config', 'incentive_config.yaml')
 const globalCfgExample = globalCfgTemplate + '.example'
+/** 白名单模板（git 已追踪） */
+const whitelistTemplate = path.join(pluginRoot, 'defSet', 'whitelist.yaml')
 
 // ========== 白名单 ==========
 
 /**
- * 读取白名单
+ * 读取白名单（文件不存在时从模板创建）
  * @returns {{enabled: boolean, users: string[]}}
  */
 function loadWhitelist() {
   try {
-    if (!fs.existsSync(whitelistPath)) return { enabled: true, users: [] }
+    if (!fs.existsSync(whitelistPath)) {
+      return createDefaultWhitelist()
+    }
     return YAML.parse(fs.readFileSync(whitelistPath, 'utf8')) || { enabled: true, users: [] }
   } catch (e) {
     logger.error('[Bilibili-Plugin] 读取白名单失败:', e)
@@ -33,12 +37,64 @@ function loadWhitelist() {
 }
 
 /**
- * 写入白名单
+ * 从模板创建默认白名单文件（保留注释）
+ * @returns {{enabled: boolean, users: string[]}}
+ */
+function createDefaultWhitelist() {
+  let content = 'enabled: true\nusers: []\n'
+  try {
+    if (fs.existsSync(whitelistTemplate)) {
+      content = fs.readFileSync(whitelistTemplate, 'utf8')
+    }
+  } catch (e) {
+    logger.warn('[Bilibili-Plugin] 读取白名单模板失败，使用默认:', e)
+  }
+  content = renderTemplate(content, { whitelist_enabled: 'true' })
+  fs.mkdirSync(path.dirname(whitelistPath), { recursive: true })
+  fs.writeFileSync(whitelistPath, content, 'utf8')
+  return YAML.parse(content) || { enabled: true, users: [] }
+}
+
+/**
+ * 写入白名单（文本级更新，保留注释）
  * @param {{enabled: boolean, users: string[]}} data
  */
 function saveWhitelist(data) {
-  fs.mkdirSync(path.dirname(whitelistPath), { recursive: true })
-  fs.writeFileSync(whitelistPath, YAML.stringify(data, null, 2), 'utf8')
+  const filePath = whitelistPath
+  fs.mkdirSync(path.dirname(filePath), { recursive: true })
+
+  try {
+    if (!fs.existsSync(filePath)) {
+      createDefaultWhitelist()
+    }
+
+    let content = fs.readFileSync(filePath, 'utf8')
+    const lines = content.split('\n')
+    let usersLineIdx = -1
+
+    for (let i = 0; i < lines.length; i++) {
+      if (/^enabled:/i.test(lines[i]) && !lines[i].trim().startsWith('#')) {
+        const indent = lines[i].match(/^(\s*)/)[1]
+        lines[i] = `${indent}enabled: ${data.enabled !== false}`
+      }
+      if (/^users:/i.test(lines[i]) && !lines[i].trim().startsWith('#')) {
+        usersLineIdx = i
+      }
+    }
+
+    const before = usersLineIdx >= 0 ? lines.slice(0, usersLineIdx + 1) : [...lines, 'users:']
+    const rest = usersLineIdx >= 0 ? lines.slice(usersLineIdx + 1).filter(l => !/^\s*-\s*"/.test(l)) : []
+    const usersYaml = (data.users || []).map(u => `  - "${u}"`)
+    const result = [...before, ...usersYaml, ...rest]
+
+    fs.writeFileSync(filePath, result.join('\n'), 'utf8')
+  } catch (e) {
+    logger.warn('[Bilibili-Plugin] 文本更新白名单失败，使用 YAML 回退:', e)
+    fs.writeFileSync(filePath, YAML.stringify({
+      enabled: data.enabled !== false,
+      users: data.users || [],
+    }, null, 2), 'utf8')
+  }
 }
 
 /**
