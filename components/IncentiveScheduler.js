@@ -3,6 +3,7 @@ import { loadAccountCookies } from '../components/Storage.js'
 import { doClaim } from '../components/Claimer.js'
 import { getPluginConfig } from '../components/config.js'
 import { logTask, logClaim } from '../components/Logger.js'
+import { setTaskInfo } from '../components/TaskCache.js'
 
 /** 默认截止时间（秒），可从配置覆盖 */
 const DEFAULT_DEADLINE = 40
@@ -110,6 +111,7 @@ async function startClaimRound(qq, links, notifyGroup, cancelSignal) {
       const { cdkey, awardInfo } = await doClaim(taskId, qq, cancelSignal)
       results.push({ url, success: true, awardName: awardInfo.award_name, cdkey })
       logClaim(`成功: code=0, cdkey=${cdkey}`, qq)
+      setTaskInfo(taskId, awardInfo)
       logger.info(`[Bilibili-Plugin] QQ ${qq} task ${taskId} 领取成功: ${awardInfo.award_name} ${cdkey}`)
     } catch (err) {
       const isDeadline = cancelSignal.cancelled

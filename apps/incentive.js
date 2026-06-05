@@ -1,6 +1,9 @@
 import { loadUserConfig, saveUserConfig, createDefaultUserConfig, createGlobalDefaultConfig, loadWhitelist, saveWhitelist, isWhitelisted, MAX_SLOTS } from '../components/IncentiveConfig.js'
 import { onCronTick } from '../components/IncentiveScheduler.js'
 import { getPluginConfig } from '../components/config.js'
+import { getTaskInfo, setTaskInfo } from '../components/TaskCache.js'
+import { createClient } from '../components/Claimer.js'
+import { render } from '../components/render.js'
 
 export class BiliIncentive extends plugin {
   constructor() {
@@ -110,7 +113,7 @@ export class BiliIncentive extends plugin {
   }
 
   /**
-   * #激励列表 — 查看当前用户的 13 槽位配置
+   * #激励列表 — HTML 渲染展示 13 槽位配置
    */
   async cmdListLinks(e) {
     const cfg = loadUserConfig(e.user_id)
@@ -119,24 +122,47 @@ export class BiliIncentive extends plugin {
     }
 
     const links = Array.isArray(cfg.links) ? cfg.links : []
-    const filled = links.filter(l => l && l.trim())
-    if (!filled.length) {
-      return this.reply('[b站插件] 您的激励配置为空，使用 #激励添加 <序号> <链接> 填入链接')
-    }
+    const claimTime = getPluginConfig()?.incentive?.claimTime || '01:00'
 
-    const lines = ['[b站插件] 您的激励配置（每日1:00领取）']
+    const slots = []
     for (let i = 0; i < MAX_SLOTS; i++) {
       const url = (links[i] || '').trim()
       if (!url) continue
-      const idx = i + 1
       const taskId = url.match(/task_id=([^&\s]+)/)?.[1] || ''
-      lines.push(`  ${idx}. ${taskId ? `task_id=${taskId}` : url.slice(0, 50)}`)
+
+      let info = taskId ? getTaskInfo(taskId) : null
+      if (!info && taskId) {
+        try {
+          const client = await createClient(e.user_id)
+          if (client) {
+            info = await client.getAwardInfo(taskId)
+            setTaskInfo(taskId, info)
+          }
+        } catch { /* 按需查询失败 */ }
+      }
+
+      slots.push({
+        index: i + 1,
+        award_name: info?.award_name || '',
+        task_name: info?.task_name || '',
+        act_name: info?.act_name || '',
+      })
     }
 
-    if (cfg.notifyGroup) {
-      lines.push(`通知群: ${cfg.notifyGroup}`)
+    if (!slots.length) {
+      return this.reply('[b站插件] 您的激励配置为空，使用 #激励添加 <序号> <链接> 填入链接')
     }
-    this.reply(lines.join('\n'))
+
+    const img = await render('incentiveList', 'index', {
+      qq: e.user_id,
+      claimTime,
+      notifyGroup: cfg.notifyGroup || 0,
+      slots,
+      totalFilled: slots.length,
+      totalSlots: MAX_SLOTS,
+    }, 'png')
+
+    this.reply([segment.at(e.user_id), img], false, { recallMsg: 60 })
   }
 
   /**
