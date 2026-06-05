@@ -1,4 +1,4 @@
-import { loadUserConfig, saveUserConfig, createDefaultUserConfig, loadWhitelist, saveWhitelist, isWhitelisted, MAX_SLOTS } from '../components/IncentiveConfig.js'
+import { loadUserConfig, saveUserConfig, createDefaultUserConfig, createGlobalDefaultConfig, loadWhitelist, saveWhitelist, isWhitelisted, MAX_SLOTS } from '../components/IncentiveConfig.js'
 
 export class BiliIncentive extends plugin {
   constructor() {
@@ -35,7 +35,7 @@ export class BiliIncentive extends plugin {
     }
 
     const notifyGroup = e.isGroup ? e.group_id : 0
-    createDefaultUserConfig(e.user_id, notifyGroup)
+    createGlobalDefaultConfig(e.user_id, notifyGroup)
     this.reply('[b站插件] 个人配置已创建。使用 #激励添加 <序号> <链接> | #B站帮助 查看详情')
   }
 

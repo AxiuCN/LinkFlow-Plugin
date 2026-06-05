@@ -10,8 +10,11 @@ const whitelistPath = path.join(userCfgDir, 'whitelist.yaml')
 /** 固定槽位数 */
 const MAX_SLOTS = 13
 
-/** 默认配置模板路径 */
-const defaultCfgTemplate = path.join(pluginRoot, 'config', 'incentive_config.yaml')
+/** 添加/创建时的模板：qq.yaml.example（git 已追踪） */
+const userCfgTemplate = path.join(pluginRoot, 'config', 'incentive_config', 'qq.yaml.example')
+/** #激励创建配置 模板：incentive_config.yaml（运行时生成），.example 兜底 */
+const globalCfgTemplate = path.join(pluginRoot, 'config', 'incentive_config.yaml')
+const globalCfgExample = globalCfgTemplate + '.example'
 
 // ========== 白名单 ==========
 
@@ -111,35 +114,37 @@ function saveUserConfig(qq, data) {
  * 为指定 QQ 创建默认配置（从模板文件复制，保留注释）
  * @param {string|number} qq
  * @param {number} [notifyGroup]
+ * @param {string} [templatePath] - 指定模板路径，不指定则用 userCfgTemplate
  * @returns {object} 创建后的配置
  */
-function createDefaultUserConfig(qq, notifyGroup = 0) {
-  // 读取模板文件作为纯文本，保留 YAML 注释
+function createDefaultUserConfig(qq, notifyGroup = 0, templatePath = userCfgTemplate) {
   let content = 'links: []\nnotifyGroup: 0\n'
   try {
-    if (fs.existsSync(defaultCfgTemplate)) {
-      content = fs.readFileSync(defaultCfgTemplate, 'utf8')
-    } else {
-      // 实际配置不存在时尝试 .example（gitignore 导致 clone 后缺失）
-      const examplePath = defaultCfgTemplate + '.example'
-      if (fs.existsSync(examplePath)) {
-        content = fs.readFileSync(examplePath, 'utf8')
-      }
+    if (templatePath && fs.existsSync(templatePath)) {
+      content = fs.readFileSync(templatePath, 'utf8')
     }
   } catch (e) {
     logger.warn('[Bilibili-Plugin] 读取配置模板失败，使用默认:', e)
   }
 
-  // 替换 notifyGroup
   const ng = notifyGroup || 0
   content = content.replace(/^notifyGroup:\s*\d+/m, `notifyGroup: ${ng}`)
 
-  // 写入文件
   fs.mkdirSync(userCfgDir, { recursive: true })
   fs.writeFileSync(userCfgPath(qq), content, 'utf8')
-
-  // 返回解析后的对象以供内存使用
   return normalizeUserConfig(YAML.parse(content))
+}
+
+/**
+ * #激励创建配置 专用：从全局模板（incentive_config.yaml）创建
+ * 不存在时尝试 .example，再不济走硬编码
+ */
+function createGlobalDefaultConfig(qq, notifyGroup = 0) {
+  let template = globalCfgTemplate
+  if (!fs.existsSync(template)) {
+    template = fs.existsSync(globalCfgExample) ? globalCfgExample : ''
+  }
+  return createDefaultUserConfig(qq, notifyGroup, template || '')
 }
 
 /**
@@ -158,4 +163,4 @@ function listUserConfigs() {
   }
 }
 
-export { MAX_SLOTS, loadWhitelist, saveWhitelist, isWhitelisted, loadUserConfig, saveUserConfig, createDefaultUserConfig, listUserConfigs, userCfgDir }
+export { MAX_SLOTS, loadWhitelist, saveWhitelist, isWhitelisted, loadUserConfig, saveUserConfig, createDefaultUserConfig, createGlobalDefaultConfig, listUserConfigs, userCfgDir }
