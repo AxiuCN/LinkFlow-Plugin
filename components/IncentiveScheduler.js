@@ -18,6 +18,23 @@ function isAlreadyClaimed(errMsg) {
 }
 
 /**
+ * 从 API 错误字符串中提取 code 和 msg
+ * 兼容格式：code=202031 msg=xxx、code=-509 message=xxx、终态: code=202031 msg=xxx、领取失败: ...
+ * 匹配不到时整句作为 msg
+ * @param {string} errMsg
+ * @returns {{ code: string, msg: string }}
+ */
+function parseErrorCode(errMsg) {
+  if (!errMsg) return { code: '?', msg: '未知错误' }
+  const codeMatch = errMsg.match(/code=(-?\d+)/)
+  const msgMatch = errMsg.match(/(?:msg|message)=([^;,]+)/)
+  return {
+    code: codeMatch ? codeMatch[1] : '?',
+    msg: msgMatch ? msgMatch[1].trim() : errMsg,
+  }
+}
+
+/**
  * cron 触发时被调用
  * 检查全局开关，遍历所有有 Cookie 的用户进行领取
  * 全部任务必须在 claimDeadline 秒内完成（0=不限）
@@ -91,19 +108,20 @@ async function startClaimRound(qq, links, notifyGroup, cancelSignal) {
   const logCb = (msg) => logClaim(msg, qq)
 
   for (const url of links) {
-    if (cancelSignal.cancelled) {
-      results.push({ url, success: false, error: '达到全局截止时间' })
-      continue
-    }
-
     let taskId = null
     try { taskId = new URL(url).searchParams.get('task_id') } catch {}
     if (!taskId) {
       const m = (url || '').match(/task_id=([^&\s]+)/)
       if (m) taskId = m[1]
     }
+
+    if (cancelSignal.cancelled) {
+      results.push({ taskId: taskId || '?', success: false, code: '?', msg: '达到全局截止时间' })
+      continue
+    }
+
     if (!taskId) {
-      results.push({ url, success: false, error: '无法解析 task_id' })
+      results.push({ taskId: '?', success: false, code: '?', msg: '无法解析 task_id' })
       continue
     }
 
@@ -111,14 +129,20 @@ async function startClaimRound(qq, links, notifyGroup, cancelSignal) {
 
     try {
       const { cdkey, awardInfo } = await doClaim(taskId, qq, cancelSignal, logCb)
-      results.push({ url, success: true, awardName: awardInfo.award_name, cdkey })
-      logClaim(`成功: code=0, cdkey=${cdkey}`, qq)
+      results.push({ taskId, success: true, awardName: awardInfo.award_name, cdkey })
+      logClaim(`已领取: code=0, cdkey=${cdkey}`, qq)
       setTaskInfo(taskId, awardInfo)
-      logger.info(`[Bilibili-Plugin] QQ ${qq} task ${taskId} 领取成功: ${awardInfo.award_name} ${cdkey}`)
+      logger.info(`[Bilibili-Plugin] QQ ${qq} task ${taskId} 已领取: ${awardInfo.award_name} ${cdkey}`)
+      // code=0 说明该任务已被领取过，自动清空槽位
+      if (cfg) {
+        const idx = (cfg.links || []).findIndex(l => l === url)
+        if (idx !== -1) slotsToClear.add(idx)
+      }
     } catch (err) {
       const isDeadline = cancelSignal.cancelled
       const errMsg = isDeadline ? '达到全局截止时间' : err.message
-      results.push({ url, success: false, error: errMsg })
+      const { code, msg } = parseErrorCode(errMsg)
+      results.push({ taskId, success: false, code, msg })
       logClaim(`失败: ${errMsg}`, qq)
       logger.warn(`[Bilibili-Plugin] QQ ${qq} task ${taskId} 领取失败: ${errMsg}`)
 
@@ -160,15 +184,15 @@ function buildNotifyLines(qq, results, clearedCount) {
   const lines = ['[b站插件] 每日激励领取结果']
   for (const r of results) {
     if (r.success) {
-      lines.push(`✓ ${r.awardName || '兑换成功'}: ${r.cdkey}`)
+      const cdkeyPart = r.cdkey ? ` cdkey=${r.cdkey}` : ''
+      lines.push(`task=${r.taskId} code=0${cdkeyPart}`)
     } else {
-      const flag = r.error && isAlreadyClaimed(r.error) ? '(已领取，已自动删除)' : ''
-      lines.push(`✗ ${r.error || '失败'}${flag}`)
+      lines.push(`task=${r.taskId} code=${r.code} msg=${r.msg}`)
     }
   }
-  const success = results.filter(r => r.success).length
-  const fail = results.length - success
-  lines.push(`用户 ${qq} | 共 ${results.length} 个: ${success} 成功, ${fail} 失败`)
+  const claimed = results.filter(r => r.success).length
+  const fail = results.length - claimed
+  lines.push(`用户 ${qq} | 共 ${results.length} 个: ${claimed} 已领取, ${fail} 失败`)
   if (clearedCount > 0) lines.push(`自动清理: ${clearedCount} 个已领取链接`)
   return lines
 }

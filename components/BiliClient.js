@@ -171,12 +171,12 @@ class BiliClient {
         return result
       }
 
-      const errMsg = `[领取-任务信息] code=${code}, message=${message}`
+      const errMsg = `task=${taskId} code=${code}, message=${message}`
       if (logCb) logCb(errMsg)
       if (code !== -702 || Date.now() >= deadline) {
         throw new Error(errMsg)
       }
-      if (logCb) logCb(`[领取-任务信息] 重试 attempt=${attempt}`)
+      if (logCb) logCb(`task=${taskId} 重试 attempt=${attempt}`)
       await sleep(MISSION_INFO_RETRY_INTERVAL * 1000)
     }
   }
@@ -226,7 +226,7 @@ class BiliClient {
 
           if (code === 0) {
             const cdkey = payload?.data?.extra_info?.cdkey_content || ''
-            if (!cdkey) throw new Error('领取成功但 cdkey 缺失')
+            // 无需 cdkey，code=0 即视为成功
             stop = true
             return cdkey
           }
@@ -236,18 +236,18 @@ class BiliClient {
             throw new BiliCookieInvalidError(`Cookie失效: code=${code}`)
           }
 
-          // 终态错误：已领取或库存耗尽，无需重试
-          if (code === 202031 || code === 75255) {
+          // 终态错误：无需重试
+          if (code === 202031 || code === 202032 || code === 75255) {
             stop = true
             throw new Error(`终态: code=${code} msg=${message}`)
           }
 
-          if (logCb) logCb(`[领取-提交] worker=${id} attempt=${attempt} code=${code} msg=${message}`)
+          if (logCb) logCb(`task=${taskId} worker=${id} attempt=${attempt} code=${code} msg=${message}`)
           errLog.push(`w${id}-${attempt}: code=${code} msg=${message}`)
         } catch (e) {
           if (e instanceof BiliCookieInvalidError || e instanceof BiliRewardCancelledError) throw e
-          if (stop) throw e  // 终态错误（202031/75255）传播
-          if (logCb) logCb(`[领取-提交] 异常 worker=${id} attempt=${attempt}: ${e.message}`)
+          if (stop) throw e
+          if (logCb) logCb(`task=${taskId} worker=${id} attempt=${attempt}: ${e.message}`)
           errLog.push(`w${id}-${attempt}: ${e.message}`)
         }
 
