@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta http-equiv="content-type" content="text/html;charset=utf-8"/>
+    <link rel="shortcut icon" href="#"/>
+    <link rel="stylesheet" type="text/css" href="{{_res_path}}/common/common.css"/>
+    <style>
+        body {
+            transform: scale(1);
+            width: 540px;
+            margin: 0;
+            padding: 0;
+        }
+        .container {
+            width: 540px !important;
+            padding: 30px 20px 20px 20px !important;
+            background: url('{{_res_path}}/images/background.jpg') top center / cover no-repeat;
+            border-radius: 16px;
+        }
+        .head-box {
+            text-align: center;
+            margin: 0 0 16px 0;
+            padding: 0;
+        }
+        .head-box .title {
+            font-size: 26px;
+            font-weight: bold;
+            color: #00a1d6;
+            letter-spacing: 2px;
+        }
+        .head-box .subtitle {
+            font-size: 12px;
+            color: #99a2aa;
+            margin-top: 4px;
+        }
+        .summary-bar {
+            display: flex;
+            justify-content: space-between;
+            color: #99a2aa;
+            font-size: 12px;
+            padding: 0 5px 10px 5px;
+            border-bottom: 1px solid rgba(255,255,255,0.06);
+            margin-bottom: 12px;
+        }
+        .member-card {
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 10px;
+            margin-bottom: 10px;
+            padding: 10px 14px;
+            border-left: 3px solid #fb7299;
+        }
+        .member-header {
+            font-size: 14px;
+            font-weight: bold;
+            color: #fb7299;
+            margin-bottom: 6px;
+        }
+        .slot-row {
+            font-size: 13px;
+            padding: 4px 8px;
+            margin: 3px 0;
+            border-radius: 6px;
+            line-height: 1.5;
+        }
+        .slot-row.success {
+            background: rgba(103, 194, 58, 0.12);
+            color: #b3e19d;
+        }
+        .slot-row.failed {
+            background: rgba(245, 108, 108, 0.12);
+            color: #f89898;
+        }
+        .slot-row .status-tag {
+            display: inline-block;
+            font-size: 11px;
+            padding: 1px 8px;
+            border-radius: 4px;
+            margin-left: 6px;
+        }
+        .slot-row.success .status-tag {
+            background: rgba(103, 194, 58, 0.25);
+            color: #95d475;
+        }
+        .slot-row.failed .status-tag {
+            background: rgba(245, 108, 108, 0.25);
+            color: #f56c6c;
+        }
+        .no-task {
+            font-size: 13px;
+            color: #6b7b8d;
+            padding: 4px 8px;
+        }
+        .footer {
+            text-align: center;
+            color: rgba(255,255,255,0.2);
+            font-size: 10px;
+            margin-top: 12px;
+            padding-top: 8px;
+            border-top: 1px solid rgba(255,255,255,0.06);
+        }
+        .copyright { display: none; }
+    </style>
+</head>
+<body>
+    <div class="container" id="container">
+        <div class="head-box">
+            <div class="title">UP主激励计划</div>
+            <div class="subtitle">领取结果 · {{date}} · 共 {{totalUsers}} 人</div>
+        </div>
+
+        <div class="summary-bar">
+            <span>通知群: {{groupId}}</span>
+            <span>{{successCount}} 成功, {{failCount}} 失败</span>
+        </div>
+
+        {{each members member}}
+        <div class="member-card">
+            <div class="member-header">QQ {{member.qq}}</div>
+            {{if member.hasTasks}}
+                {{each member.slots slot}}
+                <div class="slot-row {{slot.status}}">
+                    {{if slot.status === 'success'}}
+                        {{slot.act_name}}
+                        {{if slot.task_name}} · {{slot.task_name}}{{if slot.task_desc}}-{{slot.task_desc}}{{/if}}{{/if}}
+                        {{slot.award_name}}
+                        <span class="status-tag">领取成功</span>
+                    {{/if}}
+                    {{if slot.status === 'failed'}}
+                        <span class="status-tag">失败</span>
+                    {{/if}}
+                </div>
+                {{/each}}
+            {{else}}
+                <div class="no-task">暂无任务</div>
+            {{/if}}
+        </div>
+        {{/each}}
+
+        <div class="footer">Created By Yunzai-Bot {{yunzaiVersion}} &amp; Bilibili-Plugin {{version}}</div>
+    </div>
+</body>
+</html>

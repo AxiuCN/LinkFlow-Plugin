@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta http-equiv="content-type" content="text/html;charset=utf-8"/>
+    <link rel="shortcut icon" href="#"/>
+    <link rel="stylesheet" type="text/css" href="{{_res_path}}/common/common.css"/>
+    <style>
+        body {
+            transform: scale(1);
+            width: 540px;
+            margin: 0;
+            padding: 0;
+        }
+        .container {
+            width: 540px !important;
+            padding: 30px 20px 20px 20px !important;
+            background: url('{{_res_path}}/images/background.jpg') top center / cover no-repeat;
+            border-radius: 16px;
+        }
+        .head-box {
+            text-align: center;
+            margin: 0 0 16px 0;
+            padding: 0;
+        }
+        .head-box .title {
+            font-size: 24px;
+            font-weight: bold;
+            color: #00a1d6;
+            letter-spacing: 2px;
+        }
+        .head-box .subtitle {
+            font-size: 12px;
+            color: #99a2aa;
+            margin-top: 4px;
+        }
+        .slot-card {
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 8px;
+            margin-bottom: 6px;
+            padding: 8px 12px;
+            border-left: 3px solid #555;
+            display: flex;
+            align-items: flex-start;
+        }
+        .slot-card.status-claimed {
+            border-left-color: #67c23a;
+        }
+        .slot-card.status-failed {
+            border-left-color: #f56c6c;
+        }
+        .slot-card.status-skipped {
+            border-left-color: #e6a23c;
+        }
+        .slot-card.status-empty {
+            border-left-color: #555;
+        }
+        .slot-index {
+            flex-shrink: 0;
+            width: 24px;
+            height: 24px;
+            line-height: 24px;
+            text-align: center;
+            background: rgba(255,255,255,0.08);
+            border-radius: 50%;
+            font-size: 12px;
+            color: #99a2aa;
+            margin-right: 10px;
+            margin-top: 2px;
+        }
+        .slot-body {
+            flex: 1;
+            min-width: 0;
+        }
+        .slot-body .task-line {
+            font-size: 13px;
+            color: #d3bc8e;
+            line-height: 1.4;
+        }
+        .slot-body .status-line {
+            margin-top: 2px;
+        }
+        .slot-body .status-line .tag {
+            display: inline-block;
+            font-size: 11px;
+            padding: 1px 8px;
+            border-radius: 4px;
+        }
+        .slot-body .status-line .tag.claimed {
+            background: rgba(103, 194, 58, 0.2);
+            color: #95d475;
+        }
+        .slot-body .status-line .tag.failed {
+            background: rgba(245, 108, 108, 0.2);
+            color: #f56c6c;
+        }
+        .slot-body .status-line .tag.skipped {
+            background: rgba(230, 162, 60, 0.2);
+            color: #e6a23c;
+        }
+        .slot-body .status-line .tag.empty {
+            background: rgba(144, 147, 153, 0.2);
+            color: #909399;
+        }
+        .slot-body .status-line .cdkey {
+            font-size: 10px;
+            color: #6b7b8d;
+            margin-left: 6px;
+        }
+        .no-task-msg {
+            text-align: center;
+            color: #6b7b8d;
+            font-size: 14px;
+            padding: 30px 0;
+        }
+        .footer {
+            text-align: center;
+            color: rgba(255,255,255,0.2);
+            font-size: 10px;
+            margin-top: 12px;
+            padding-top: 8px;
+            border-top: 1px solid rgba(255,255,255,0.06);
+        }
+        .copyright { display: none; }
+    </style>
+</head>
+<body>
+    <div class="container" id="container">
+        <div class="head-box">
+            <div class="title">UP主激励计划</div>
+            <div class="subtitle">领取详情 · {{date}} · QQ {{qq}}</div>
+        </div>
+
+        {{if hasTasks}}
+            {{each slots slot}}
+            <div class="slot-card status-{{slot.status}}">
+                <div class="slot-index">{{slot.index}}</div>
+                <div class="slot-body">
+                    {{if slot.status === 'claimed'}}
+                        <div class="task-line">
+                            {{slot.act_name}}
+                            {{if slot.task_name}} · {{slot.task_name}}{{if slot.task_desc}}-{{slot.task_desc}}{{/if}}{{/if}}
+                            {{slot.award_name}}
+                        </div>
+                        <div class="status-line">
+                            <span class="tag claimed">领取成功，已删除</span>
+                            {{if slot.cdkey}}<span class="cdkey">cdkey={{slot.cdkey}}</span>{{/if}}
+                        </div>
+                    {{/if}}
+                    {{if slot.status === 'failed'}}
+                        <div class="status-line">
+                            <span class="tag failed">未成功</span>
+                        </div>
+                    {{/if}}
+                    {{if slot.status === 'skipped'}}
+                        <div class="status-line">
+                            <span class="tag skipped">未开始</span>
+                        </div>
+                    {{/if}}
+                    {{if slot.status === 'empty'}}
+                        <div class="status-line">
+                            <span class="tag empty">暂无任务</span>
+                        </div>
+                    {{/if}}
+                </div>
+            </div>
+            {{/each}}
+        {{else}}
+            <div class="no-task-msg">暂无任务</div>
+        {{/if}}
+
+        <div class="footer">Created By Yunzai-Bot {{yunzaiVersion}} &amp; Bilibili-Plugin {{version}}</div>
+    </div>
+</body>
+</html>

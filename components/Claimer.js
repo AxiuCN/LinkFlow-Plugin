@@ -59,7 +59,7 @@ async function doClaim(taskId, qq, cancelSignal, logCb = null) {
   const awardInfo = await client.getAwardInfo(taskId, logCb)
 
   const cdkey = await client.claimAward(taskId, awardInfo, {
-    threadCount: claimCfg.threadCount || 2,
+    threadCount: Math.max(1, claimCfg.threadCount || 2),
     maxRetry: 30,
     retryInterval: claimCfg.retryInterval || 1.0,
     cancelSignal,

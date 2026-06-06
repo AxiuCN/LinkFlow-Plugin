@@ -155,7 +155,7 @@ export class BiliIncentive extends plugin {
       return this.reply('[b站插件] 您的激励配置为空，使用 #激励添加 <序号> <链接> 填入链接')
     }
 
-    const img = await render('incentiveList', 'index', {
+    const img = await render('incentive/list', 'index', {
       qq: e.user_id,
       claimTime,
       notifyGroup: cfg.notifyGroup || 0,
