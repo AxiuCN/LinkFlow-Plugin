@@ -146,6 +146,7 @@ export class BiliIncentive extends plugin {
         index: i + 1,
         award_name: info?.award_name || '',
         task_name: info?.task_name || '',
+        task_desc: info?.task_desc || '',
         act_name: info?.act_name || '',
       })
     }

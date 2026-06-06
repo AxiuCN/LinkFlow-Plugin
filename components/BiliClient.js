@@ -163,6 +163,7 @@ class BiliClient {
           act_id: String(data.act_id || ''),
           act_name: String(data.act_name || ''),
           task_name: String(data.task_name || ''),
+          task_desc: String(data.task_desc || ''),
           award_name: String(ri.award_name || ''),
         }
         if (!result.act_id || !result.act_name || !result.task_name || !result.award_name) {

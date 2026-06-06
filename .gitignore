@@ -10,3 +10,6 @@ config/incentive_config/*.yaml
 
 # 依赖
 node_modules/
+
+# Claude Code 工作区
+.claude/

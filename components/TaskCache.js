@@ -60,6 +60,7 @@ function setTaskInfo(taskId, info) {
     award_name: info.award_name || '',
     act_name: info.act_name || '',
     task_name: info.task_name || '',
+    task_desc: info.task_desc || '',
     cached_at: new Date().toISOString(),
   }
   saveCache(cache)

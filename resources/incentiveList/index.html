@@ -133,7 +133,7 @@
                 </span>
             </div>
             {{if slot.task_name}}
-            <div class="task-name">{{slot.task_name}}</div>
+            <div class="task-name">{{slot.task_name}}{{if slot.task_desc}}-{{slot.task_desc}}{{/if}}</div>
             {{/if}}
             {{if slot.act_name}}
             <div class="act-name">{{slot.act_name}}</div>
