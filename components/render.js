@@ -13,7 +13,11 @@ import { pluginRoot } from './constants.js'
  */
 export async function render(app, tpl, data = {}, imgType = 'jpeg') {
   data._plugin = 'Bilibili-Plugin'
-  data._res_path = `../../../../../plugins/Bilibili-Plugin/resources/`
+  // 根据 app 目录深度动态计算 _res_path
+  // 缓存路径: data/html/Bilibili-Plugin/${app}/${tpl}
+  // 需要回退的层数 = 4 + app 中的 '/' 数
+  const depth = 4 + app.split('/').length
+  data._res_path = `${'../'.repeat(depth)}plugins/Bilibili-Plugin/resources/`
 
   if (imgType === 'png') {
     data.omitBackground = true
