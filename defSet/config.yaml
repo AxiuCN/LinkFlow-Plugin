@@ -12,10 +12,10 @@ login:
 incentive:
   # ---------- 全局开关 ----------
   enabled: ${incentive_enabled}
-  # ---------- 每日领取时间（HH:mm）----------
-  claimTime: ${incentive_claimTime}
-  # ---------- 兜底执行时间（HH:mm），默认 23:55 ----------
-  fallbackTime: ${incentive_fallbackTime}
+  # ---------- 主领取 cron ----------
+  claimCron: ${incentive_claimCron}
+  # ---------- 兜底领取 cron ----------
+  fallbackCron: ${incentive_fallbackCron}
   # ---------- 全局截止时间（秒），0=不限 ----------
   claimDeadline: ${incentive_claimDeadline}
   # ---------- 领取设置 ----------

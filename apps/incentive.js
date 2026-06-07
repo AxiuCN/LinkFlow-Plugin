@@ -25,21 +25,23 @@ export class BiliIncentive extends plugin {
     })
 
     const config = getPluginConfig()
-    const claimTime = config?.incentive?.claimTime || '01:00'
-    const [ch, cm] = claimTime.split(':').map(Number)
-    const claimH = Math.min(23, Math.max(0, isNaN(ch) ? 1 : ch))
-    const claimM = Math.min(59, Math.max(0, isNaN(cm) ? 0 : cm))
+    // 主领取 cron，兼容旧版 claimTime（HH:mm）
+    let claimCron = config?.incentive?.claimCron
+    if (!claimCron && config?.incentive?.claimTime) {
+      const [h, m] = config.incentive.claimTime.split(':').map(Number)
+      const ch = Math.min(23, Math.max(0, isNaN(h) ? 1 : h))
+      const cm = Math.min(59, Math.max(0, isNaN(m) ? 0 : m))
+      claimCron = `0 ${cm} ${ch} * * ?`
+    }
+    claimCron = claimCron || '0 0 1 * * ?'
 
-    const fallbackTime = config?.incentive?.fallbackTime || '23:55'
-    const [fh, fm] = fallbackTime.split(':').map(Number)
-    const fallH = Math.min(23, Math.max(0, isNaN(fh) ? 23 : fh))
-    const fallM = Math.min(59, Math.max(0, isNaN(fm) ? 55 : fm))
+    const fallbackCron = config?.incentive?.fallbackCron || '0 55 23 * * ?'
 
     this.task = [
       {
         name: 'biliIncentiveSchedule',
         fnc: () => this.tick(),
-        cron: `${0} ${claimM} ${claimH} * * ?`,
+        cron: claimCron,
         log: false,
       },
       {

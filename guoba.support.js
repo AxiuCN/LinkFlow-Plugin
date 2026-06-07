@@ -13,8 +13,8 @@ const defaultConfigPath = path.join(pluginRoot, 'defSet', 'config.yaml')
 const mainDefaults = {
   login_pollTimeout: 180,
   incentive_enabled: true,
-  incentive_claimTime: '01:00',
-  incentive_fallbackTime: '23:55',
+  incentive_claimCron: '0 0 1 * * ?',
+  incentive_fallbackCron: '0 55 23 * * ?',
   incentive_claimDeadline: 40,
   incentive_claim_threadCount: 2,
   incentive_claim_maxRetry: 30,
@@ -88,15 +88,25 @@ export function supportGuoba() {
           component: 'Switch',
           required: true,
           componentProps: { defaultValue: true },
+
+        // ---- 领取设置 ----
+        {
+            component: "Divider",
+            label: "领取设置",
+            componentProps: {
+                orientation: "left",
+                plain: true,
+            },
+        },
         },
         {
-          field: 'incentive.claimTime',
-          label: '领取时间',
-          helpMessage: '每天自动领取的时间（HH:mm 格式）',
-          bottomHelpMessage: '例如 01:00 表示每天凌晨1点执行',
-          component: 'Input',
+          field: 'incentive.claimCron',
+          label: '主领取 cron',
+          helpMessage: 'cron 表达式，格式：秒 分 时 日 月 周',
+          bottomHelpMessage: '默认 0 0 1 * * ? 表示每天凌晨1点整',
+          component: 'EasyCron',
           required: true,
-          componentProps: { placeholder: 'HH:mm', defaultValue: '01:00' },
+          componentProps: { showSecond: true, defaultValue: '0 0 1 * * ?' },
         },
         {
           field: 'incentive.claimDeadline',
@@ -138,18 +148,28 @@ export function supportGuoba() {
           component: 'InputNumber',
           required: true,
           componentProps: { min: 3, max: 60, defaultValue: 10 },
+
+        // ---- 兜底设置 ----
+        {
+            component: "Divider",
+            label: "兜底设置",
+            componentProps: {
+                orientation: "left",
+                plain: true,
+            },
+        },
         },
 
         // ==================== 兜底任务 ====================
         { label: '兜底任务', component: 'SOFT_GROUP_BEGIN' },
         {
-          field: 'incentive.fallbackTime',
-          label: '兜底执行时间',
-          helpMessage: '每日兜底检查的时间（HH:mm 格式）',
-          bottomHelpMessage: '检查全局每日任务链接，未领取则自动领取，默认 23:55',
-          component: 'Input',
+          field: 'incentive.fallbackCron',
+          label: '兜底领取 cron',
+          helpMessage: 'cron 表达式，格式：秒 分 时 日 月 周',
+          bottomHelpMessage: '默认 0 55 23 * * ? 表示每天 23:55 执行',
+          component: 'EasyCron',
           required: true,
-          componentProps: { placeholder: 'HH:mm', defaultValue: '23:55' },
+          componentProps: { showSecond: true, defaultValue: '0 55 23 * * ?' },
         },
         {
           field: 'incentive.dailyTaskLink1',
@@ -220,7 +240,7 @@ export function supportGuoba() {
           'login.pollTimeout': userCfg.login?.pollTimeout ?? mainDefaults.login_pollTimeout,
           'incentive.enabled': userCfg.incentive?.enabled ?? mainDefaults.incentive_enabled,
           'incentive.claimTime': userCfg.incentive?.claimTime ?? mainDefaults.incentive_claimTime,
-          'incentive.fallbackTime': userCfg.incentive?.fallbackTime ?? mainDefaults.incentive_fallbackTime,
+          'incentive.fallbackCron': userCfg.incentive?.fallbackCron ?? mainDefaults.incentive_fallbackCron,
           'incentive.claimDeadline': userCfg.incentive?.claimDeadline ?? mainDefaults.incentive_claimDeadline,
           'incentive.claim.threadCount': claim.threadCount ?? mainDefaults.incentive_claim_threadCount,
           'incentive.claim.maxRetry': claim.maxRetry ?? mainDefaults.incentive_claim_maxRetry,
