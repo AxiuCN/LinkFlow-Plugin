@@ -36,9 +36,10 @@ async function doLogin(qq, opts = {}) {
  * @param {string|number} qq
  * @param {object} [cancelSignal]
  * @param {Function} [logCb] — 每次请求的回调 (msg)，用于文件日志
+ * @param {object} [awardInfo] — 可选，预获取的任务信息，若提供则跳过内部 getAwardInfo
  * @returns {Promise<{cdkey: string, awardInfo: object}>}
  */
-async function doClaim(taskId, qq, cancelSignal, logCb = null) {
+async function doClaim(taskId, qq, cancelSignal, logCb = null, awardInfo = null) {
   const config = getPluginConfig()
   const claimCfg = config?.incentive?.claim || {}
 
@@ -56,7 +57,9 @@ async function doClaim(taskId, qq, cancelSignal, logCb = null) {
     throw e
   }
 
-  const awardInfo = await client.getAwardInfo(taskId, logCb)
+  if (!awardInfo) {
+    awardInfo = await client.getAwardInfo(taskId, logCb)
+  }
 
   const cdkey = await client.claimAward(taskId, awardInfo, {
     threadCount: Math.max(1, claimCfg.threadCount || 2),

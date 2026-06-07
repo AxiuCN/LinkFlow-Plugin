@@ -1,5 +1,5 @@
 import { loadUserConfig, saveUserConfig, createDefaultUserConfig, createGlobalDefaultConfig, loadWhitelist, saveWhitelist, isWhitelisted, MAX_SLOTS } from '../components/IncentiveConfig.js'
-import { onCronTick } from '../components/IncentiveScheduler.js'
+import { onCronTick, onFallbackTick } from '../components/IncentiveScheduler.js'
 import { getPluginConfig } from '../components/config.js'
 import { getTaskInfo, setTaskInfo } from '../components/TaskCache.js'
 import { createClient } from '../components/Claimer.js'
@@ -26,19 +26,37 @@ export class BiliIncentive extends plugin {
 
     const config = getPluginConfig()
     const claimTime = config?.incentive?.claimTime || '01:00'
-    const [hour, minute] = claimTime.split(':').map(Number)
-    const hh = Math.min(23, Math.max(0, isNaN(hour) ? 1 : hour))
-    const mm = Math.min(59, Math.max(0, isNaN(minute) ? 0 : minute))
-    this.task = {
-      name: 'biliIncentiveSchedule',
-      fnc: () => this.tick(),
-      cron: `${0} ${mm} ${hh} * * ?`,
-      log: false,
-    }
+    const [ch, cm] = claimTime.split(':').map(Number)
+    const claimH = Math.min(23, Math.max(0, isNaN(ch) ? 1 : ch))
+    const claimM = Math.min(59, Math.max(0, isNaN(cm) ? 0 : cm))
+
+    const fallbackTime = config?.incentive?.fallbackTime || '23:55'
+    const [fh, fm] = fallbackTime.split(':').map(Number)
+    const fallH = Math.min(23, Math.max(0, isNaN(fh) ? 23 : fh))
+    const fallM = Math.min(59, Math.max(0, isNaN(fm) ? 55 : fm))
+
+    this.task = [
+      {
+        name: 'biliIncentiveSchedule',
+        fnc: () => this.tick(),
+        cron: `${0} ${claimM} ${claimH} * * ?`,
+        log: false,
+      },
+      {
+        name: 'biliIncentiveFallback',
+        fnc: () => this.fallbackTick(),
+        cron: `${0} ${fallM} ${fallH} * * ?`,
+        log: false,
+      },
+    ]
   }
 
   async tick() {
     await onCronTick()
+  }
+
+  async fallbackTick() {
+    await onFallbackTick()
   }
 
   // ========== 配置创建 ==========

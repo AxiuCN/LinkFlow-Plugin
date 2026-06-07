@@ -48,6 +48,9 @@
         .slot-card.status-failed {
             border-left-color: #f56c6c;
         }
+        .slot-card.status-already_claimed {
+            border-left-color: #909399;
+        }
         .slot-card.status-skipped {
             border-left-color: #e6a23c;
         }
@@ -96,6 +99,10 @@
         .slot-body .status-line .tag.skipped {
             background: rgba(230, 162, 60, 0.2);
             color: #e6a23c;
+        }
+        .slot-body .status-line .tag.already_claimed {
+            background: rgba(144, 147, 153, 0.2);
+            color: #909399;
         }
         .slot-body .status-line .tag.empty {
             background: rgba(144, 147, 153, 0.2);
@@ -147,11 +154,31 @@
                         </div>
                     {{/if}}
                     {{if slot.status === 'failed'}}
+                        <div class="task-line">
+                            {{slot.act_name}}
+                            {{if slot.task_name}} · {{slot.task_name}}{{if slot.task_desc}}-{{slot.task_desc}}{{/if}}{{/if}}
+                            {{slot.award_name}}
+                        </div>
                         <div class="status-line">
                             <span class="tag failed">未成功</span>
                         </div>
                     {{/if}}
+                    {{if slot.status === 'already_claimed'}}
+                        <div class="task-line">
+                            {{slot.act_name}}
+                            {{if slot.task_name}} · {{slot.task_name}}{{if slot.task_desc}}-{{slot.task_desc}}{{/if}}{{/if}}
+                            {{slot.award_name}}
+                        </div>
+                        <div class="status-line">
+                            <span class="tag already_claimed">已领取过</span>
+                        </div>
+                    {{/if}}
                     {{if slot.status === 'skipped'}}
+                        <div class="task-line">
+                            {{slot.act_name}}
+                            {{if slot.task_name}} · {{slot.task_name}}{{if slot.task_desc}}-{{slot.task_desc}}{{/if}}{{/if}}
+                            {{slot.award_name}}
+                        </div>
                         <div class="status-line">
                             <span class="tag skipped">未开始</span>
                         </div>

@@ -14,6 +14,8 @@ incentive:
   enabled: ${incentive_enabled}
   # ---------- 每日领取时间（HH:mm）----------
   claimTime: ${incentive_claimTime}
+  # ---------- 兜底执行时间（HH:mm），默认 23:55 ----------
+  fallbackTime: ${incentive_fallbackTime}
   # ---------- 全局截止时间（秒），0=不限 ----------
   claimDeadline: ${incentive_claimDeadline}
   # ---------- 领取设置 ----------
@@ -26,3 +28,10 @@ incentive:
     retryInterval: ${incentive_claim_retryInterval}
     # 单次请求超时（秒）
     timeout: ${incentive_claim_timeout}
+
+  # ---------- 每日兜底任务（4个，主人配置）----------
+  dailyTaskLinks:
+    - '${incentive_dailyTaskLink1}'
+    - '${incentive_dailyTaskLink2}'
+    - '${incentive_dailyTaskLink3}'
+    - '${incentive_dailyTaskLink4}'

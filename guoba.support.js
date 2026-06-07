@@ -14,11 +14,16 @@ const mainDefaults = {
   login_pollTimeout: 180,
   incentive_enabled: true,
   incentive_claimTime: '01:00',
+  incentive_fallbackTime: '23:55',
   incentive_claimDeadline: 40,
   incentive_claim_threadCount: 2,
   incentive_claim_maxRetry: 30,
   incentive_claim_retryInterval: 1.0,
   incentive_claim_timeout: 10,
+  incentive_dailyTaskLink1: '',
+  incentive_dailyTaskLink2: '',
+  incentive_dailyTaskLink3: '',
+  incentive_dailyTaskLink4: '',
 }
 
 function getTemplate(path) {
@@ -135,6 +140,43 @@ export function supportGuoba() {
           componentProps: { min: 3, max: 60, defaultValue: 10 },
         },
 
+        // ==================== 兜底任务 ====================
+        { label: '兜底任务', component: 'SOFT_GROUP_BEGIN' },
+        {
+          field: 'incentive.fallbackTime',
+          label: '兜底执行时间',
+          helpMessage: '每日兜底检查的时间（HH:mm 格式）',
+          bottomHelpMessage: '检查全局每日任务链接，未领取则自动领取，默认 23:55',
+          component: 'Input',
+          required: true,
+          componentProps: { placeholder: 'HH:mm', defaultValue: '23:55' },
+        },
+        {
+          field: 'incentive.dailyTaskLink1',
+          label: '每日任务链接 1',
+          helpMessage: '全局每日激励任务链接（含 task_id）',
+          component: 'Input',
+          componentProps: { placeholder: '活动链接' },
+        },
+        {
+          field: 'incentive.dailyTaskLink2',
+          label: '每日任务链接 2',
+          component: 'Input',
+          componentProps: { placeholder: '活动链接' },
+        },
+        {
+          field: 'incentive.dailyTaskLink3',
+          label: '每日任务链接 3',
+          component: 'Input',
+          componentProps: { placeholder: '活动链接' },
+        },
+        {
+          field: 'incentive.dailyTaskLink4',
+          label: '每日任务链接 4',
+          component: 'Input',
+          componentProps: { placeholder: '活动链接' },
+        },
+
         // ==================== 用户配置列表 ====================
         {
           field: 'incentive.users',
@@ -172,15 +214,22 @@ export function supportGuoba() {
           return entry
         })
 
+        const dailyLinks = userCfg.incentive?.dailyTaskLinks || []
+
         return {
           'login.pollTimeout': userCfg.login?.pollTimeout ?? mainDefaults.login_pollTimeout,
           'incentive.enabled': userCfg.incentive?.enabled ?? mainDefaults.incentive_enabled,
           'incentive.claimTime': userCfg.incentive?.claimTime ?? mainDefaults.incentive_claimTime,
+          'incentive.fallbackTime': userCfg.incentive?.fallbackTime ?? mainDefaults.incentive_fallbackTime,
           'incentive.claimDeadline': userCfg.incentive?.claimDeadline ?? mainDefaults.incentive_claimDeadline,
           'incentive.claim.threadCount': claim.threadCount ?? mainDefaults.incentive_claim_threadCount,
           'incentive.claim.maxRetry': claim.maxRetry ?? mainDefaults.incentive_claim_maxRetry,
           'incentive.claim.retryInterval': claim.retryInterval ?? mainDefaults.incentive_claim_retryInterval,
           'incentive.claim.timeout': claim.timeout ?? mainDefaults.incentive_claim_timeout,
+          'incentive.dailyTaskLink1': dailyLinks[0] || '',
+          'incentive.dailyTaskLink2': dailyLinks[1] || '',
+          'incentive.dailyTaskLink3': dailyLinks[2] || '',
+          'incentive.dailyTaskLink4': dailyLinks[3] || '',
           'incentive.users': userList,
         }
       },

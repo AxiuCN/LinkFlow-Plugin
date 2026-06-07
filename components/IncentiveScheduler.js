@@ -1,6 +1,6 @@
 import { loadUserConfig, saveUserConfig, listUserConfigs, MAX_SLOTS } from '../components/IncentiveConfig.js'
 import { loadAccountCookies } from '../components/Storage.js'
-import { doClaim } from '../components/Claimer.js'
+import { doClaim, createClient } from '../components/Claimer.js'
 import { getPluginConfig } from '../components/config.js'
 import { logTask, logClaim } from '../components/Logger.js'
 import { setTaskInfo } from '../components/TaskCache.js'
@@ -156,8 +156,19 @@ async function startClaimRound(qq, cfg, cancelSignal) {
 
     logTask(`当前任务 ID: ${taskId}`, qq)
 
+    // 预获取任务信息，使失败时也能展示任务名称
+    let cachedAwardInfo = null
     try {
-      const { cdkey, awardInfo } = await doClaim(taskId, qq, cancelSignal, logCb)
+      const client = await createClient(qq)
+      if (client) {
+        await client.ensureLoggedIn()
+        cachedAwardInfo = await client.getAwardInfo(taskId, logCb)
+        setTaskInfo(taskId, cachedAwardInfo)
+      }
+    } catch { /* getAwardInfo 失败不影响后续领取 */ }
+
+    try {
+      const { cdkey, awardInfo } = await doClaim(taskId, qq, cancelSignal, logCb, cachedAwardInfo)
       slots.push({
         index: slotIdx + 1,
         status: 'success',
@@ -169,7 +180,6 @@ async function startClaimRound(qq, cfg, cancelSignal) {
         cdkey: cdkey || '',
       })
       logClaim(`已领取: code=0, cdkey=${cdkey}`, qq)
-      setTaskInfo(taskId, awardInfo)
       logger.info(`[Bilibili-Plugin] QQ ${qq} task ${taskId} 已领取: ${awardInfo.award_name} ${cdkey}`)
       slotsToClear.add(slotIdx)
     } catch (err) {
@@ -192,6 +202,10 @@ async function startClaimRound(qq, cfg, cancelSignal) {
         index: slotIdx + 1,
         status: 'failed',
         taskId,
+        act_name: (cachedAwardInfo?.act_name) || '',
+        task_name: (cachedAwardInfo?.task_name) || '',
+        task_desc: (cachedAwardInfo?.task_desc) || '',
+        award_name: (cachedAwardInfo?.award_name) || '',
         errorCode: code,
         errorMsg: msg,
       })
@@ -299,10 +313,9 @@ function buildGroupNotifyData(gid, members, date) {
   let totalFail = 0
 
   for (const m of members) {
-    // 群通知只展示成功/失败，不含截止未开始和空槽
-    const activeSlots = m.slots.filter(s => s.status === 'success' || s.status === 'failed')
+    // 群通知展示成功/失败/已领取，不含截止未开始和空槽
+    const activeSlots = m.slots.filter(s => s.status === 'success' || s.status === 'failed' || s.status === 'already_claimed')
     if (!activeSlots.length) {
-      // 无成功/失败的任务，不在群通知中显示该用户
       continue
     }
 
@@ -311,7 +324,7 @@ function buildGroupNotifyData(gid, members, date) {
       task_name: s.task_name || '',
       task_desc: s.task_desc || '',
       award_name: s.award_name || '',
-      status: s.status,  // 'success' | 'failed'
+      status: s.status,
     }))
 
     for (const s of activeSlots) {
@@ -342,14 +355,15 @@ function buildGroupNotifyData(gid, members, date) {
 function buildGroupTextFallback(gid, members) {
   const lines = [`[b站插件] 群 ${gid} 激励领取结果`]
   for (const m of members) {
-    // 只统计成功/失败，不含未开始
-    const activeSlots = m.slots.filter(s => s.status === 'success' || s.status === 'failed')
+    const activeSlots = m.slots.filter(s => s.status === 'success' || s.status === 'failed' || s.status === 'already_claimed')
     if (!activeSlots.length) continue
     const success = activeSlots.filter(s => s.status === 'success').length
     const fail = activeSlots.filter(s => s.status === 'failed').length
+    const already = activeSlots.filter(s => s.status === 'already_claimed').length
     const parts = []
     if (success) parts.push(`${success}成功`)
     if (fail) parts.push(`${fail}失败`)
+    if (already) parts.push(`${already}已领取`)
     lines.push(`QQ ${m.qq}: ${parts.join(', ')}`)
   }
   return lines.join('\n')
@@ -454,6 +468,8 @@ function buildPersonalTextFallback(ur) {
       lines.push(`${prefix}领取成功${s.cdkey ? ` cdkey=${s.cdkey}` : ''}`)
     } else if (s.status === 'failed') {
       lines.push(`${prefix}未成功 code=${s.errorCode}`)
+    } else if (s.status === 'already_claimed') {
+      lines.push(`${prefix}已领取过`)
     } else if (s.status === 'skipped') {
       lines.push(`${prefix}未开始`)
     }
@@ -475,4 +491,160 @@ function todayStr() {
   return `${y}-${m}-${day}`
 }
 
-export { onCronTick }
+// ===================== 兜底任务 =====================
+
+/**
+ * 从 URL 中提取 task_id
+ * @param {string} url
+ * @returns {string|null}
+ */
+function extractTaskId(url) {
+  if (!url) return null
+  try {
+    const id = new URL(url).searchParams.get('task_id')
+    if (id) return id
+  } catch {}
+  const m = url.match(/task_id=([^&\s]+)/)
+  return m ? m[1] : null
+}
+
+/**
+ * 每日兜底任务 cron 入口（默认 23:55）
+ * 遍历所有有配置的用户，对全局每日任务链接逐个检查领取
+ * 每条链接间隔 15s，多人并行，不删除链接
+ */
+async function onFallbackTick() {
+  const config = getPluginConfig()
+  if (!config?.incentive?.enabled) {
+    logger.info('[Bilibili-Plugin] 激励领取已关闭，跳过兜底')
+    return
+  }
+
+  const links = (config?.incentive?.dailyTaskLinks || []).filter(Boolean)
+  if (!links.length) {
+    logger.info('[Bilibili-Plugin] 无每日兜底任务链接，跳过')
+    return
+  }
+
+  const fallbackTime = config?.incentive?.fallbackTime || '23:55'
+  const allQq = listUserConfigs()
+  if (!allQq.length) {
+    logger.info('[Bilibili-Plugin] 无配置用户，跳过兜底')
+    return
+  }
+
+  logger.info(`[Bilibili-Plugin] 每日兜底任务开始 (${fallbackTime})，共 ${allQq.length} 个用户，${links.length} 个链接`)
+
+  const promises = []
+  for (const qq of allQq) {
+    const cookies = loadAccountCookies(qq)
+    if (!cookies) continue
+
+    const cfg = loadUserConfig(qq)
+    if (!cfg) continue
+
+    logTask(`[兜底] 开始执行，共 ${links.length} 个链接`, qq)
+    promises.push(
+      processUserFallback(qq, links).catch(err => {
+        logger.error(`[Bilibili-Plugin] QQ ${qq} 兜底异常:`, err)
+        return null
+      }),
+    )
+  }
+
+  const settled = await Promise.allSettled(promises)
+  const userResults = settled
+    .filter(r => r.status === 'fulfilled' && r.value)
+    .map(r => r.value)
+
+  logger.info(`[Bilibili-Plugin] 每日兜底任务结束，共 ${userResults.length} 个用户完成`)
+
+  if (!userResults.length) return
+
+  // 发送群通知和个人通知
+  const hasGroupNotify = await sendGroupNotifies(userResults)
+  if (hasGroupNotify) await sleep(10000)
+  await sendPersonalNotifies(userResults)
+}
+
+/**
+ * 对单个用户执行兜底领取
+ * @param {string|number} qq
+ * @param {string[]} links — 全局每日任务链接
+ * @returns {Promise<{qq, notifyGroup: number, slots: object[], clearedCount: number}>}
+ */
+async function processUserFallback(qq, links) {
+  const cfg = loadUserConfig(qq)
+  const notifyGroup = cfg?.notifyGroup || 0
+  const slots = []
+  const logCb = (msg) => logClaim(msg, qq)
+
+  for (const url of links) {
+    const taskId = extractTaskId(url)
+    if (!taskId) {
+      slots.push({ status: 'failed', errorCode: '?', errorMsg: '无法解析 task_id' })
+      continue
+    }
+
+    logTask(`[兜底] 当前任务 ID: ${taskId}`, qq)
+
+    // 预获取任务信息
+    let cachedAwardInfo = null
+    try {
+      const client = await createClient(qq)
+      if (client) {
+        cachedAwardInfo = await client.getAwardInfo(taskId, logCb)
+      }
+    } catch {}
+
+    try {
+      const { cdkey, awardInfo } = await doClaim(taskId, qq, null, logCb, cachedAwardInfo)
+      slots.push({
+        index: slots.length + 1,
+        status: 'success',
+        taskId,
+        act_name: awardInfo.act_name || '',
+        task_name: awardInfo.task_name || '',
+        task_desc: awardInfo.task_desc || '',
+        award_name: awardInfo.award_name || '',
+        cdkey: cdkey || '',
+      })
+      logClaim(`[兜底] 已领取: code=0`, qq)
+    } catch (err) {
+      if (isAlreadyClaimed(err.message)) {
+        const ai = cachedAwardInfo
+        slots.push({
+          index: slots.length + 1,
+          status: 'already_claimed',
+          taskId,
+          act_name: ai?.act_name || '',
+          task_name: ai?.task_name || '',
+          task_desc: ai?.task_desc || '',
+          award_name: ai?.award_name || '',
+        })
+        logClaim(`[兜底] 已领取过: ${err.message}`, qq)
+      } else {
+        const { code, msg } = parseErrorCode(err.message)
+        const ai = cachedAwardInfo
+        slots.push({
+          index: slots.length + 1,
+          status: 'failed',
+          taskId,
+          act_name: ai?.act_name || '',
+          task_name: ai?.task_name || '',
+          task_desc: ai?.task_desc || '',
+          award_name: ai?.award_name || '',
+          errorCode: code,
+          errorMsg: msg,
+        })
+        logClaim(`[兜底] 失败: ${err.message}`, qq)
+      }
+    }
+
+    await sleep(15000)  // 每条链接间隔 15s
+  }
+
+  return { qq, notifyGroup, slots, clearedCount: 0 }
+}
+
+export { onCronTick, onFallbackTick }

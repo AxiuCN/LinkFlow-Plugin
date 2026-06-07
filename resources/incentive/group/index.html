@@ -126,7 +126,16 @@
                         <span class="status-tag">领取成功</span>
                     {{/if}}
                     {{if slot.status === 'failed'}}
+                        {{slot.act_name}}
+                        {{if slot.task_name}} · {{slot.task_name}}{{if slot.task_desc}}-{{slot.task_desc}}{{/if}}{{/if}}
+                        {{slot.award_name}}
                         <span class="status-tag">失败</span>
+                    {{/if}}
+                    {{if slot.status === 'already_claimed'}}
+                        {{slot.act_name}}
+                        {{if slot.task_name}} · {{slot.task_name}}{{if slot.task_desc}}-{{slot.task_desc}}{{/if}}{{/if}}
+                        {{slot.award_name}}
+                        <span class="status-tag">已领取</span>
                     {{/if}}
                 </div>
                 {{/each}}
