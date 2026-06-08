@@ -35,5 +35,16 @@ export const helpList = [
     list: [
       { icon: 1, title: '#b站帮助', desc: '查看帮助图' }
     ]
+  },
+  {
+    group: 'TIP',
+    list: [
+      { icon: 1, title: 'Step 1', desc: '#b站登录 → 绑定B站账号' },
+      { icon: 75, title: 'Step 2', desc: '#激励创建配置 → 生成20槽位个人配置' },
+      { icon: 87, title: 'Step 3', desc: '#激励添加 <序号> <链接> 填入活动' },
+      { icon: 80, title: '关于槽位', desc: '1-10直播，11-20看播。按序号从小到大领取，优先放重要的' },
+      { icon: 69, title: 'Step 4', desc: '#领取每日激励 → 手动领取每日任务奖励' },
+      { icon: 92, title: '关于每日任务', desc: '主人配置的全局链接，非20槽位，23:55自动兜底' },
+    ]
   }
 ]
