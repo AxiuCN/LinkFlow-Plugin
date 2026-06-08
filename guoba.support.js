@@ -123,8 +123,9 @@ export function supportGuoba() {
           helpMessage: '同时发送请求的 worker 数量',
           bottomHelpMessage: '建议 2-5，过高可能触发风控',
           component: 'InputNumber',
+          defaultValue: 2,
           required: true,
-          componentProps: { min: 1, max: 10, defaultValue: 2 },
+          componentProps: { min: 1, max: 10 },
         },
         {
           field: 'incentive.claim.maxRetry',

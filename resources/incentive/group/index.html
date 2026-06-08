@@ -70,6 +70,22 @@
             background: rgba(245, 108, 108, 0.12);
             color: #f89898;
         }
+        .slot-row.already_claimed {
+            background: rgba(144, 147, 153, 0.12);
+            color: #909399;
+        }
+        .slot-row.unclaimed {
+            background: rgba(245, 108, 108, 0.12);
+            color: #f89898;
+        }
+        .slot-row.incomplete {
+            background: rgba(230, 162, 60, 0.12);
+            color: #e6a23c;
+        }
+        .slot-row.exhausted {
+            background: rgba(180, 80, 80, 0.15);
+            color: #d47c7c;
+        }
         .slot-row .status-tag {
             display: inline-block;
             font-size: 11px;
@@ -81,9 +97,22 @@
             background: rgba(103, 194, 58, 0.25);
             color: #95d475;
         }
-        .slot-row.failed .status-tag {
+        .slot-row.failed .status-tag,
+        .slot-row.unclaimed .status-tag {
             background: rgba(245, 108, 108, 0.25);
             color: #f56c6c;
+        }
+        .slot-row.already_claimed .status-tag {
+            background: rgba(144, 147, 153, 0.25);
+            color: #909399;
+        }
+        .slot-row.incomplete .status-tag {
+            background: rgba(230, 162, 60, 0.25);
+            color: #e6a23c;
+        }
+        .slot-row.exhausted .status-tag {
+            background: rgba(180, 80, 80, 0.25);
+            color: #d47c7c;
         }
         .no-task {
             font-size: 13px;
@@ -110,7 +139,7 @@
 
         <div class="summary-bar">
             <span>通知群: {{groupId}}</span>
-            <span>{{successCount}} 成功, {{failCount}} 失败</span>
+            <span>{{successCount}} 成功{{if claimedCount > 0}}, {{claimedCount}} 已领取{{/if}}{{if failCount > 0}}, {{failCount}} 失败{{/if}}</span>
         </div>
 
         {{each members member}}
@@ -125,17 +154,29 @@
                         {{slot.award_name}}
                         <span class="status-tag">领取成功</span>
                     {{/if}}
-                    {{if slot.status === 'failed'}}
-                        {{slot.act_name}}
-                        {{if slot.task_name}} · {{slot.task_name}}{{if slot.task_desc}}-{{slot.task_desc}}{{/if}}{{/if}}
-                        {{slot.award_name}}
-                        <span class="status-tag">失败</span>
-                    {{/if}}
                     {{if slot.status === 'already_claimed'}}
                         {{slot.act_name}}
                         {{if slot.task_name}} · {{slot.task_name}}{{if slot.task_desc}}-{{slot.task_desc}}{{/if}}{{/if}}
                         {{slot.award_name}}
                         <span class="status-tag">已领取</span>
+                    {{/if}}
+                    {{if slot.status === 'unclaimed'}}
+                        {{slot.act_name}}
+                        {{if slot.task_name}} · {{slot.task_name}}{{if slot.task_desc}}-{{slot.task_desc}}{{/if}}{{/if}}
+                        {{slot.award_name}}
+                        <span class="status-tag">未领取</span>
+                    {{/if}}
+                    {{if slot.status === 'incomplete'}}
+                        {{slot.act_name}}
+                        {{if slot.task_name}} · {{slot.task_name}}{{if slot.task_desc}}-{{slot.task_desc}}{{/if}}{{/if}}
+                        {{slot.award_name}}
+                        <span class="status-tag">未完成</span>
+                    {{/if}}
+                    {{if slot.status === 'exhausted'}}
+                        {{slot.act_name}}
+                        {{if slot.task_name}} · {{slot.task_name}}{{if slot.task_desc}}-{{slot.task_desc}}{{/if}}{{/if}}
+                        {{slot.award_name}}
+                        <span class="status-tag">库存耗尽</span>
                     {{/if}}
                 </div>
                 {{/each}}

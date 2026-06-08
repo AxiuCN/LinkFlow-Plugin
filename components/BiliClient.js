@@ -157,6 +157,7 @@ class BiliClient {
       const message = payload?.message || ''
 
       if (code === 0) {
+        if (logCb) logCb(`task=${taskId} code=0 getAwardInfo`)
         const data = payload?.data || {}
         const ri = data.reward_info || {}
         const result = {
@@ -227,7 +228,7 @@ class BiliClient {
 
           if (code === 0) {
             const cdkey = payload?.data?.extra_info?.cdkey_content || ''
-            // 无需 cdkey，code=0 即视为成功
+            if (logCb) logCb(`task=${taskId} worker=${id} attempt=${attempt} code=0 success`)
             stop = true
             return cdkey
           }

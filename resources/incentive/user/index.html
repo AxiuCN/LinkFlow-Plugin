@@ -45,11 +45,17 @@
         .slot-card.status-claimed {
             border-left-color: #67c23a;
         }
-        .slot-card.status-failed {
-            border-left-color: #f56c6c;
-        }
         .slot-card.status-already_claimed {
             border-left-color: #909399;
+        }
+        .slot-card.status-unclaimed {
+            border-left-color: #f56c6c;
+        }
+        .slot-card.status-incomplete {
+            border-left-color: #e6a23c;
+        }
+        .slot-card.status-exhausted {
+            border-left-color: #b05050;
         }
         .slot-card.status-skipped {
             border-left-color: #e6a23c;
@@ -92,9 +98,17 @@
             background: rgba(103, 194, 58, 0.2);
             color: #95d475;
         }
-        .slot-body .status-line .tag.failed {
+        .slot-body .status-line .tag.unclaimed {
             background: rgba(245, 108, 108, 0.2);
             color: #f56c6c;
+        }
+        .slot-body .status-line .tag.incomplete {
+            background: rgba(230, 162, 60, 0.2);
+            color: #e6a23c;
+        }
+        .slot-body .status-line .tag.exhausted {
+            background: rgba(180, 80, 80, 0.2);
+            color: #d47c7c;
         }
         .slot-body .status-line .tag.skipped {
             background: rgba(230, 162, 60, 0.2);
@@ -153,14 +167,34 @@
                             {{if slot.cdkey}}<span class="cdkey">cdkey={{slot.cdkey}}</span>{{/if}}
                         </div>
                     {{/if}}
-                    {{if slot.status === 'failed'}}
+                    {{if slot.status === 'unclaimed'}}
                         <div class="task-line">
                             {{slot.act_name}}
                             {{if slot.task_name}} · {{slot.task_name}}{{if slot.task_desc}}-{{slot.task_desc}}{{/if}}{{/if}}
                             {{slot.award_name}}
                         </div>
                         <div class="status-line">
-                            <span class="tag failed">未成功</span>
+                            <span class="tag unclaimed">未领取</span>
+                        </div>
+                    {{/if}}
+                    {{if slot.status === 'incomplete'}}
+                        <div class="task-line">
+                            {{slot.act_name}}
+                            {{if slot.task_name}} · {{slot.task_name}}{{if slot.task_desc}}-{{slot.task_desc}}{{/if}}{{/if}}
+                            {{slot.award_name}}
+                        </div>
+                        <div class="status-line">
+                            <span class="tag incomplete">未完成</span>
+                        </div>
+                    {{/if}}
+                    {{if slot.status === 'exhausted'}}
+                        <div class="task-line">
+                            {{slot.act_name}}
+                            {{if slot.task_name}} · {{slot.task_name}}{{if slot.task_desc}}-{{slot.task_desc}}{{/if}}{{/if}}
+                            {{slot.award_name}}
+                        </div>
+                        <div class="status-line">
+                            <span class="tag exhausted">库存耗尽</span>
                         </div>
                     {{/if}}
                     {{if slot.status === 'already_claimed'}}

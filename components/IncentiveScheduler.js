@@ -36,6 +36,22 @@ function parseErrorCode(errMsg) {
   }
 }
 
+/**
+ * 根据 API 错误码和消息归类失败原因
+ * @param {string} code
+ * @param {string} msg
+ * @returns {'unclaimed'|'already_claimed'|'incomplete'|'exhausted'}
+ */
+function categorizeError(code, msg) {
+  if (code === '202031') return 'already_claimed'
+  if (code === '202032') return 'incomplete'
+  if (code === '75255') return 'exhausted'
+  const m = msg || ''
+  if (/未完成|不满足条件|无资格/.test(m)) return 'incomplete'
+  if (/库存|已领完|耗尽|没有库存/.test(m)) return 'exhausted'
+  return 'unclaimed'
+}
+
 function sleep(ms) {
   return new Promise(resolve => setTimeout(resolve, ms))
 }
@@ -125,6 +141,7 @@ async function startClaimRound(qq, cfg, cancelSignal) {
   const notifyGroup = cfg.notifyGroup || 0
   const slots = []
   const slotsToClear = new Set()
+  let lastCode = ''
 
   const logCb = (msg) => logClaim(msg, qq)
 
@@ -150,11 +167,12 @@ async function startClaimRound(qq, cfg, cancelSignal) {
     }
 
     if (!taskId) {
-      slots.push({ index: slotIdx + 1, status: 'failed', errorCode: '?', errorMsg: '无法解析 task_id' })
+      slots.push({ index: slotIdx + 1, status: 'unclaimed', errorCode: '?', errorMsg: '无法解析 task_id' })
+      lastCode = '?'
       continue
     }
 
-    logTask(`当前任务 ID: ${taskId}`, qq)
+    logTask(`当前任务 ID: ${taskId}${lastCode ? `  ← code=${lastCode}` : ''}`, qq)
 
     // 预获取任务信息，使失败时也能展示任务名称
     let cachedAwardInfo = null
@@ -182,6 +200,7 @@ async function startClaimRound(qq, cfg, cancelSignal) {
       logClaim(`已领取: code=0, cdkey=${cdkey}`, qq)
       logger.info(`[Bilibili-Plugin] QQ ${qq} task ${taskId} 已领取: ${awardInfo.award_name} ${cdkey}`)
       slotsToClear.add(slotIdx)
+      lastCode = '0'
     } catch (err) {
       const isDeadline = cancelSignal.cancelled
       const errMsg = isDeadline ? '达到全局截止时间' : err.message
@@ -198,9 +217,13 @@ async function startClaimRound(qq, cfg, cancelSignal) {
         break
       }
 
+      // 归类失败原因
+      const failStatus = categorizeError(code, msg)
+      lastCode = code
+
       slots.push({
         index: slotIdx + 1,
-        status: 'failed',
+        status: failStatus,
         taskId,
         act_name: (cachedAwardInfo?.act_name) || '',
         task_name: (cachedAwardInfo?.task_name) || '',
@@ -209,8 +232,8 @@ async function startClaimRound(qq, cfg, cancelSignal) {
         errorCode: code,
         errorMsg: msg,
       })
-      logClaim(`失败: ${errMsg}`, qq)
-      logger.warn(`[Bilibili-Plugin] QQ ${qq} task ${taskId} 领取失败: ${errMsg}`)
+      logClaim(`${failStatus}: ${errMsg}`, qq)
+      logger.warn(`[Bilibili-Plugin] QQ ${qq} task ${taskId} ${failStatus}: ${errMsg}`)
     }
   }
 
@@ -311,10 +334,12 @@ function buildGroupNotifyData(gid, members, date) {
   const memberList = []
   let totalSuccess = 0
   let totalFail = 0
+  let totalClaimed = 0
 
   for (const m of members) {
-    // 群通知展示成功/失败/已领取，不含截止未开始和空槽
-    const activeSlots = m.slots.filter(s => s.status === 'success' || s.status === 'failed' || s.status === 'already_claimed')
+    // 群通知展示成功/已领取/未领取/未完成/库存耗尽，不含截止未开始和空槽
+    const showStatuses = ['success', 'already_claimed', 'unclaimed', 'incomplete', 'exhausted']
+    const activeSlots = m.slots.filter(s => showStatuses.includes(s.status))
     if (!activeSlots.length) {
       continue
     }
@@ -329,6 +354,7 @@ function buildGroupNotifyData(gid, members, date) {
 
     for (const s of activeSlots) {
       if (s.status === 'success') totalSuccess++
+      else if (s.status === 'already_claimed') totalClaimed++
       else totalFail++
     }
 
@@ -345,6 +371,7 @@ function buildGroupNotifyData(gid, members, date) {
     totalUsers: memberList.length,
     successCount: totalSuccess,
     failCount: totalFail,
+    claimedCount: totalClaimed,
     members: memberList,
   }
 }
@@ -355,15 +382,20 @@ function buildGroupNotifyData(gid, members, date) {
 function buildGroupTextFallback(gid, members) {
   const lines = [`[b站插件] 群 ${gid} 激励领取结果`]
   for (const m of members) {
-    const activeSlots = m.slots.filter(s => s.status === 'success' || s.status === 'failed' || s.status === 'already_claimed')
+    const showStatuses = ['success', 'already_claimed', 'unclaimed', 'incomplete', 'exhausted']
+    const activeSlots = m.slots.filter(s => showStatuses.includes(s.status))
     if (!activeSlots.length) continue
     const success = activeSlots.filter(s => s.status === 'success').length
-    const fail = activeSlots.filter(s => s.status === 'failed').length
     const already = activeSlots.filter(s => s.status === 'already_claimed').length
+    const unclaimed = activeSlots.filter(s => s.status === 'unclaimed').length
+    const incomplete = activeSlots.filter(s => s.status === 'incomplete').length
+    const exhausted = activeSlots.filter(s => s.status === 'exhausted').length
     const parts = []
     if (success) parts.push(`${success}成功`)
-    if (fail) parts.push(`${fail}失败`)
     if (already) parts.push(`${already}已领取`)
+    if (unclaimed) parts.push(`${unclaimed}未领取`)
+    if (incomplete) parts.push(`${incomplete}未完成`)
+    if (exhausted) parts.push(`${exhausted}库存耗尽`)
     lines.push(`QQ ${m.qq}: ${parts.join(', ')}`)
   }
   return lines.join('\n')
@@ -466,10 +498,14 @@ function buildPersonalTextFallback(ur) {
     const prefix = `槽位${s.index}: `
     if (s.status === 'success') {
       lines.push(`${prefix}领取成功${s.cdkey ? ` cdkey=${s.cdkey}` : ''}`)
-    } else if (s.status === 'failed') {
-      lines.push(`${prefix}未成功 code=${s.errorCode}`)
     } else if (s.status === 'already_claimed') {
       lines.push(`${prefix}已领取过`)
+    } else if (s.status === 'unclaimed') {
+      lines.push(`${prefix}未领取 code=${s.errorCode}`)
+    } else if (s.status === 'incomplete') {
+      lines.push(`${prefix}未完成`)
+    } else if (s.status === 'exhausted') {
+      lines.push(`${prefix}库存耗尽`)
     } else if (s.status === 'skipped') {
       lines.push(`${prefix}未开始`)
     }
@@ -582,7 +618,7 @@ async function processUserFallback(qq, links) {
   for (const url of links) {
     const taskId = extractTaskId(url)
     if (!taskId) {
-      slots.push({ status: 'failed', errorCode: '?', errorMsg: '无法解析 task_id' })
+      slots.push({ status: 'unclaimed', errorCode: '?', errorMsg: '无法解析 task_id' })
       continue
     }
 
@@ -625,10 +661,11 @@ async function processUserFallback(qq, links) {
         logClaim(`[兜底] 已领取过: ${err.message}`, qq)
       } else {
         const { code, msg } = parseErrorCode(err.message)
+        const failStatus = categorizeError(code, msg)
         const ai = cachedAwardInfo
         slots.push({
           index: slots.length + 1,
-          status: 'failed',
+          status: failStatus,
           taskId,
           act_name: ai?.act_name || '',
           task_name: ai?.task_name || '',
@@ -637,7 +674,7 @@ async function processUserFallback(qq, links) {
           errorCode: code,
           errorMsg: msg,
         })
-        logClaim(`[兜底] 失败: ${err.message}`, qq)
+        logClaim(`[兜底] ${failStatus}: ${err.message}`, qq)
       }
     }
 
