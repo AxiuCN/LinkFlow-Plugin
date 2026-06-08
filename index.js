@@ -45,14 +45,8 @@ function generateFromTemplate(targetName, templateSrc, defaults) {
 // 从 example 复制主配置
 ensureConfig('config.yaml')
 
-// 从 defSet 模板生成激励全局配置
-generateFromTemplate('incentive_config.yaml',
-  path.join('incentive_config', 'qq.yaml'), {
-    incentive_time_1: '23:29',
-    incentive_time_2: '23:59',
-    incentive_time_3: '00:29',
-    incentive_time_4: '00:59',
-  })
+// 从 .example 创建激励全局配置（保留 ${notifyGroup} 占位符供 createDefaultUserConfig 使用）
+ensureConfig('incentive_config.yaml')
 
 // 确保 data 及运行时子目录存在
 const dataDir = path.join(__dirname, 'data')
