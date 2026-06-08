@@ -14,6 +14,7 @@ const mainDefaults = {
   login_pollTimeout: 180,
   incentive_enabled: true,
   incentive_claimCron: '0 0 1 * * ?',
+  incentive_watchCron: '0 30 0 * * ?',
   incentive_fallbackCron: '0 55 23 * * ?',
   incentive_claimDeadline: 40,
   incentive_claim_threadCount: 2,
@@ -150,10 +151,26 @@ export function supportGuoba() {
           componentProps: { min: 3, max: 60, defaultValue: 10 },
         },
 
-        // ---- 兜底设置 ----
+        // ---- 看播设置 ----
         {
             component: "Divider",
-            label: "兜底设置",
+            label: "看播设置",
+            componentProps: {
+                orientation: "left",
+                plain: true,
+            },
+        },
+        {
+          field: 'incentive.watchCron',
+          label: '看播领取 cron',
+          helpMessage: 'cron 表达式，格式：秒 分 时 日 月 周',
+          bottomHelpMessage: '默认 0 30 0 * * ? 表示每天 00:30 执行',
+          component: 'EasyCron',
+          required: true,
+          componentProps: { showSecond: true, defaultValue: '0 30 0 * * ?' },
+        },
+
+        // ---- 兜底设置 ----
             componentProps: {
                 orientation: "left",
                 plain: true,
@@ -209,7 +226,7 @@ export function supportGuoba() {
                 componentProps: { min: 0, placeholder: '0=不通知' } },
               ...Array.from({ length: MAX_SLOTS }, (_, i) => ({
                 field: `link${i + 1}`,
-                label: `兑换链接${i + 1}`,
+                label: i < 10 ? `直播兑换链接${i + 1}` : `看播兑换链接${i + 1}`,
                 component: 'Input',
                 componentProps: { placeholder: '活动链接（含 task_id）' },
               })),
@@ -238,6 +255,7 @@ export function supportGuoba() {
           'login.pollTimeout': userCfg.login?.pollTimeout ?? mainDefaults.login_pollTimeout,
           'incentive.enabled': userCfg.incentive?.enabled ?? mainDefaults.incentive_enabled,
           'incentive.claimCron': userCfg.incentive?.claimCron ?? mainDefaults.incentive_claimCron,
+          'incentive.watchCron': userCfg.incentive?.watchCron ?? mainDefaults.incentive_watchCron,
           'incentive.fallbackCron': userCfg.incentive?.fallbackCron ?? mainDefaults.incentive_fallbackCron,
           'incentive.claimDeadline': userCfg.incentive?.claimDeadline ?? mainDefaults.incentive_claimDeadline,
           'incentive.claim.threadCount': claim.threadCount ?? mainDefaults.incentive_claim_threadCount,

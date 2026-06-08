@@ -59,25 +59,34 @@ function sleep(ms) {
 /**
  * cron 触发时被调用
  * 检查全局开关，遍历所有有 Cookie 的用户进行领取
+ * @param {'live'|'watch'} [mode='live'] — 直播（槽位 1-10）或看播（槽位 11-20）
  * 全部任务必须在 claimDeadline 秒内完成（0=不限）
  * 领取完毕后发送群通知 HTML 和个人通知 HTML（间隔10s）
  */
-async function onCronTick() {
+async function onCronTick(mode = 'live') {
   const config = getPluginConfig()
   if (!config?.incentive?.enabled) {
     logger.info('[Bilibili-Plugin] 激励领取已关闭，跳过')
     return
   }
 
-  const claimTime = config?.incentive?.claimTime || '01:00'
+  const modeLabel = mode === 'watch' ? '看播' : '直播'
+  const claimTime = mode === 'watch'
+    ? (config?.incentive?.watchCron || '0 30 0 * * ?')
+    : (config?.incentive?.claimTime || '01:00')
   const deadline = config?.incentive?.claimDeadline ?? DEFAULT_DEADLINE
   const allQq = listUserConfigs()
   if (!allQq.length) {
-    logger.info('[Bilibili-Plugin] 无配置用户，跳过')
+    logger.info(`[Bilibili-Plugin] 无配置用户，跳过${modeLabel}`)
     return
   }
 
-  logger.info(`[Bilibili-Plugin] 每日激励领取开始 (${claimTime})，共 ${allQq.length} 个配置用户` +
+  // 槽位范围：直播 1-10（索引 0-9），看播 11-20（索引 10-19）
+  const slotRange = mode === 'watch'
+    ? { start: 10, end: MAX_SLOTS }
+    : { start: 0, end: 10 }
+
+  logger.info(`[Bilibili-Plugin] 每日${modeLabel}激励领取开始 (${claimTime})，共 ${allQq.length} 个配置用户` +
     (deadline > 0 ? `，截止 ${deadline}s` : '，不限时'))
 
   // 全局取消信号
@@ -86,7 +95,7 @@ async function onCronTick() {
   if (deadline > 0) {
     deadlineTimer = setTimeout(() => {
       cancelSignal.cancelled = true
-      logger.info(`[Bilibili-Plugin] 全局截止时间到（${deadline}s），取消剩余任务`)
+      logger.info(`[Bilibili-Plugin] 全局截止时间到（${deadline}s），取消剩余${modeLabel}任务`)
     }, deadline * 1000)
   }
 
@@ -98,14 +107,14 @@ async function onCronTick() {
     const cfg = loadUserConfig(qq)
     if (!cfg) continue
 
-    const links = (cfg.links || []).filter(l => l && typeof l === 'string')
+    const links = (cfg.links || []).slice(slotRange.start, slotRange.end).filter(l => l && typeof l === 'string')
     if (!links.length) continue
 
-    logTask(`开始执行领取流程，共 ${links.length} 个链接`, qq)
+    logTask(`[${modeLabel}] 开始执行领取流程，共 ${links.length} 个链接`, qq)
 
     promises.push(
-      startClaimRound(qq, cfg, cancelSignal).catch(err => {
-        logger.error(`[Bilibili-Plugin] QQ ${qq} 领取异常:`, err)
+      startClaimRound(qq, cfg, cancelSignal, slotRange, mode).catch(err => {
+        logger.error(`[Bilibili-Plugin] QQ ${qq} ${modeLabel}领取异常:`, err)
         return null
       }),
     )
@@ -113,7 +122,7 @@ async function onCronTick() {
 
   const settled = await Promise.allSettled(promises)
   clearTimeout(deadlineTimer)
-  logger.info('[Bilibili-Plugin] 本轮领取全部结束')
+  logger.info(`[Bilibili-Plugin] 本轮${modeLabel}领取全部结束`)
 
   const userResults = settled
     .filter(r => r.status === 'fulfilled' && r.value)
@@ -130,13 +139,15 @@ async function onCronTick() {
 }
 
 /**
- * 对单个用户的所有槽位执行领取
+ * 对单个用户的指定槽位范围执行领取
  * @param {string|number} qq
- * @param {object} cfg          — 完整个人配置（含 links[13]）
+ * @param {object} cfg          — 完整个人配置（含 links[20]）
  * @param {{cancelled: boolean}} cancelSignal
- * @returns {Promise<{qq, notifyGroup: number, slots: object[], clearedCount: number}>}
+ * @param {{start: number, end: number}} slotRange
+ * @param {'live'|'watch'} [mode='live']
+ * @returns {Promise<{qq, notifyGroup: number, slots: object[], clearedCount: number, mode: string}>}
  */
-async function startClaimRound(qq, cfg, cancelSignal) {
+async function startClaimRound(qq, cfg, cancelSignal, slotRange = { start: 0, end: MAX_SLOTS }, mode = 'live') {
   const allLinks = Array.isArray(cfg.links) ? cfg.links : Array(MAX_SLOTS).fill('')
   const notifyGroup = cfg.notifyGroup || 0
   const slots = []
@@ -145,7 +156,7 @@ async function startClaimRound(qq, cfg, cancelSignal) {
 
   const logCb = (msg) => logClaim(msg, qq)
 
-  for (let slotIdx = 0; slotIdx < MAX_SLOTS; slotIdx++) {
+  for (let slotIdx = slotRange.start; slotIdx < slotRange.end; slotIdx++) {
     const url = (allLinks[slotIdx] || '').trim()
     if (!url) {
       slots.push({ index: slotIdx + 1, status: 'empty' })
@@ -162,7 +173,7 @@ async function startClaimRound(qq, cfg, cancelSignal) {
 
     // 截止时间到：剩余非空槽全部标记 skipped
     if (cancelSignal.cancelled) {
-      fillRemainingSlots(slots, allLinks, slotIdx)
+      fillRemainingSlots(slots, allLinks, slotIdx, slotRange.end)
       break
     }
 
@@ -213,7 +224,7 @@ async function startClaimRound(qq, cfg, cancelSignal) {
 
       // 截止触发在此任务执行期间：标记当前及后续为 skipped
       if (isDeadline) {
-        fillRemainingSlots(slots, allLinks, slotIdx)
+        fillRemainingSlots(slots, allLinks, slotIdx, slotRange.end)
         break
       }
 
@@ -253,7 +264,7 @@ async function startClaimRound(qq, cfg, cancelSignal) {
     logger.info(`[Bilibili-Plugin] QQ ${qq} 已自动清空 ${slotsToClear.size} 个已领取槽位`)
   }
 
-  return { qq, notifyGroup, slots, clearedCount: slotsToClear.size }
+  return { qq, notifyGroup, slots, clearedCount: slotsToClear.size, mode }
 }
 
 /**
@@ -261,9 +272,10 @@ async function startClaimRound(qq, cfg, cancelSignal) {
  * @param {object[]} slots   — 收集结果的数组
  * @param {string[]} allLinks
  * @param {number} fromIdx   — 起始槽位索引
+ * @param {number} end       — 结束索引（不含），默认 MAX_SLOTS
  */
-function fillRemainingSlots(slots, allLinks, fromIdx) {
-  for (let j = fromIdx; j < MAX_SLOTS; j++) {
+function fillRemainingSlots(slots, allLinks, fromIdx, end = MAX_SLOTS) {
+  for (let j = fromIdx; j < end; j++) {
     const u = (allLinks[j] || '').trim()
     if (u) {
       slots.push({ index: j + 1, status: 'skipped' })
@@ -363,10 +375,15 @@ function buildGroupNotifyData(gid, members, date) {
 
   if (!memberList.length) return null
 
+  const mode = members[0]?.mode || 'live'
+  const modeLabel = mode === 'watch' ? '看播' : ''
+
   return {
     version: pluginVersion,
     yunzaiVersion,
     date,
+    mode,
+    modeLabel,
     groupId: gid,
     totalUsers: memberList.length,
     successCount: totalSuccess,
@@ -380,7 +397,8 @@ function buildGroupNotifyData(gid, members, date) {
  * 群通知渲染失败时的文本降级
  */
 function buildGroupTextFallback(gid, members) {
-  const lines = [`[b站插件] 群 ${gid} 激励领取结果`]
+  const modeLabel = members[0]?.mode === 'watch' ? '看播' : ''
+  const lines = [`[b站插件] 群 ${gid} ${modeLabel}激励领取结果`]
   for (const m of members) {
     const showStatuses = ['success', 'already_claimed', 'unclaimed', 'incomplete', 'exhausted']
     const activeSlots = m.slots.filter(s => showStatuses.includes(s.status))
@@ -456,6 +474,8 @@ function buildPersonalNotifyData(userResult, date) {
       version: pluginVersion,
       yunzaiVersion,
       date,
+      mode: userResult.mode || 'live',
+      modeLabel: userResult.mode === 'watch' ? '看播' : '',
       qq: userResult.qq,
       hasTasks: false,
       slots: [],
@@ -472,10 +492,14 @@ function buildPersonalNotifyData(userResult, date) {
     cdkey: s.cdkey || '',
   }))
 
+  const modeLabel = userResult.mode === 'watch' ? '看播' : ''
+
   return {
     version: pluginVersion,
     yunzaiVersion,
     date,
+    mode: userResult.mode || 'live',
+    modeLabel,
     qq: userResult.qq,
     hasTasks: true,
     slots: slotList,
@@ -487,7 +511,8 @@ function buildPersonalNotifyData(userResult, date) {
  * 个人通知渲染失败时的文本降级
  */
 function buildPersonalTextFallback(ur) {
-  const lines = [`[b站插件] 每日激励领取结果`]
+  const modeLabel = ur.mode === 'watch' ? '看播' : ''
+  const lines = [`[b站插件] 每日${modeLabel}激励领取结果`]
   const activeSlots = ur.slots.filter(s => s.status !== 'empty')
 
   if (!activeSlots.length) {
@@ -691,7 +716,7 @@ async function processUserFallback(qq, links) {
     await sleep(15000)  // 每条链接间隔 15s
   }
 
-  return { qq, notifyGroup, slots, clearedCount: 0 }
+  return { qq, notifyGroup, slots, clearedCount: 0, mode: 'fallback' }
 }
 
 export { onCronTick, onFallbackTick }

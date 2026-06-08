@@ -15,9 +15,9 @@ export const helpList = [
     group: '激励计划',
     list: [
       { icon: 75, title: '#激励创建配置', desc: '生成个人配置' },
-      { icon: 87, title: '#激励添加 <序号> <链接>', desc: '填入槽位（1-13）' },
-      { icon: 80, title: '#激励列表', desc: '查看13槽位状态' },
-      { icon: 92, title: '#激励删除 <序号>', desc: '清空指定槽位（1-13）' }
+      { icon: 87, title: '#激励添加 <序号> <链接>', desc: '填入槽位（1-20）' },
+      { icon: 80, title: '#激励列表', desc: '查看20槽位状态（直播+看播）' },
+      { icon: 92, title: '#激励删除 <序号>', desc: '清空指定槽位（1-20）' }
     ]
   },
   {

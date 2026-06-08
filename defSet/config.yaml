@@ -14,6 +14,8 @@ incentive:
   enabled: ${incentive_enabled}
   # ---------- 主领取 cron ----------
   claimCron: ${incentive_claimCron}
+  # ---------- 看播领取 cron ----------
+  watchCron: ${incentive_watchCron}
   # ---------- 兜底领取 cron ----------
   fallbackCron: ${incentive_fallbackCron}
   # ---------- 全局截止时间（秒），0=不限 ----------

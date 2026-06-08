@@ -114,7 +114,7 @@
     <div class="container" id="container">
         <div class="head-box">
             <div class="title">激励配置</div>
-            <div class="subtitle">用户 {{qq}} · 每日 {{claimTime}} 自动领取</div>
+            <div class="subtitle">用户 {{qq}} · 直播 {{claimTime}} / 看播 {{watchTime}} 自动领取</div>
         </div>
 
         <div class="info-bar">
@@ -124,7 +124,9 @@
             {{/if}}
         </div>
 
-        {{each slots slot}}
+        {{if liveFilled > 0}}
+        <div style="color:#99a2aa;font-size:13px;margin:8px 0 4px 0;padding-left:4px;">━ 直播（{{liveFilled}}） ━</div>
+        {{each liveSlots slot}}
         <div class="slot-card">
             <div class="slot-header">
                 <span>
@@ -140,6 +142,27 @@
             {{/if}}
         </div>
         {{/each}}
+        {{/if}}
+
+        {{if watchFilled > 0}}
+        <div style="color:#99a2aa;font-size:13px;margin:12px 0 4px 0;padding-left:4px;">━ 看播（{{watchFilled}}） ━</div>
+        {{each watchSlots slot}}
+        <div class="slot-card">
+            <div class="slot-header">
+                <span>
+                    <span class="slot-num">{{slot.index}}</span>
+                    <span class="award-name">{{slot.award_name}}</span>
+                </span>
+            </div>
+            {{if slot.task_name}}
+            <div class="task-name">{{slot.task_name}}{{if slot.task_desc}}-{{slot.task_desc}}{{/if}}</div>
+            {{/if}}
+            {{if slot.act_name}}
+            <div class="act-name">{{slot.act_name}}</div>
+            {{/if}}
+        </div>
+        {{/each}}
+        {{/if}}
 
         {{if totalFilled === 0}}
         <div class="empty-hint">暂无兑换链接，使用 #激励添加 &lt;序号&gt; &lt;链接&gt; 添加</div>

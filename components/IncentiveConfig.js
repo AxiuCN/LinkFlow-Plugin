@@ -7,8 +7,8 @@ import { pluginRoot } from './constants.js'
 const userCfgDir = path.join(pluginRoot, 'config', 'incentive_config')
 const whitelistPath = path.join(userCfgDir, 'whitelist.yaml')
 
-/** 固定槽位数 */
-const MAX_SLOTS = 13
+/** 固定槽位数（1-10 直播，11-20 看播） */
+const MAX_SLOTS = 20
 
 /** 添加/创建时的模板：qq.yaml.example（git 已追踪） */
 const userCfgTemplate = path.join(pluginRoot, 'config', 'incentive_config', 'qq.yaml.example')
@@ -127,7 +127,7 @@ function userCfgPath(qq) {
 /**
  * 读取指定 QQ 的个人配置
  * @param {string|number} qq
- * @returns {object|null} { links: string[13], notifyGroup: number } 或 null
+ * @returns {object|null} { links: string[20], notifyGroup: number } 或 null
  */
 function loadUserConfig(qq) {
   try {
@@ -141,7 +141,7 @@ function loadUserConfig(qq) {
 }
 
 /**
- * 确保配置包含 13 个槽位，不足补空串，超长截断
+ * 确保配置包含 20 个槽位，不足补空串，超长截断
  * @param {object} data
  * @returns {object}
  */
@@ -177,7 +177,7 @@ function saveUserConfig(qq, data) {
       }
     }
 
-    // 按文件中 `  - "..."` 的行号顺序更新 13 个槽位
+    // 按文件中 `  - "..."` 的行号顺序更新所有槽位
     let slotIdx = 0
     for (let i = 0; i < lines.length && slotIdx < MAX_SLOTS; i++) {
       const match = lines[i].match(/^(\s*-\s*)"(.*)"\s*$/)
@@ -217,7 +217,7 @@ function renderTemplate(template, values) {
  * @returns {object} 创建后的配置
  */
 function createDefaultUserConfig(qq, notifyGroup = 0, templatePath = userCfgTemplate) {
-  let content = 'links:\n  - ""\n  - ""\n  - ""\n  - ""\n  - ""\n  - ""\n  - ""\n  - ""\n  - ""\n  - ""\n  - ""\n  - ""\n  - ""\nnotifyGroup: 0\n'
+  let content = 'links:\n  - ""\n  - ""\n  - ""\n  - ""\n  - ""\n  - ""\n  - ""\n  - ""\n  - ""\n  - ""\n  - ""\n  - ""\n  - ""\n  - ""\n  - ""\n  - ""\n  - ""\n  - ""\n  - ""\n  - ""\nnotifyGroup: 0\n'
   try {
     if (templatePath && fs.existsSync(templatePath)) {
       content = fs.readFileSync(templatePath, 'utf8')

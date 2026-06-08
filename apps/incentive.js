@@ -35,13 +35,20 @@ export class BiliIncentive extends plugin {
     }
     claimCron = claimCron || '0 0 1 * * ?'
 
+    const watchCron = config?.incentive?.watchCron || '0 30 0 * * ?'
     const fallbackCron = config?.incentive?.fallbackCron || '0 55 23 * * ?'
 
     this.task = [
       {
         name: 'biliIncentiveSchedule',
-        fnc: () => this.tick(),
+        fnc: () => this.tick('live'),
         cron: claimCron,
+        log: false,
+      },
+      {
+        name: 'biliIncentiveWatch',
+        fnc: () => this.tick('watch'),
+        cron: watchCron,
         log: false,
       },
       {
@@ -53,8 +60,8 @@ export class BiliIncentive extends plugin {
     ]
   }
 
-  async tick() {
-    await onCronTick()
+  async tick(mode = 'live') {
+    await onCronTick(mode)
   }
 
   async fallbackTick() {
@@ -64,7 +71,7 @@ export class BiliIncentive extends plugin {
   // ========== 配置创建 ==========
 
   /**
-   * #激励创建配置 — 为当前 QQ 生成个人配置（13 个空槽位）
+   * #激励创建配置 — 为当前 QQ 生成个人配置（20 个空槽位）
    */
   async cmdCreateConfig(e) {
     if (!isWhitelisted(e.user_id) && !e.isMaster) {
@@ -85,7 +92,7 @@ export class BiliIncentive extends plugin {
 
   /**
    * #激励添加 <序号> <链接> — 填入指定槽位
-   * 序号 1-13，覆盖旧值
+   * 序号 1-20，覆盖旧值
    */
   async cmdAddLink(e) {
     if (!isWhitelisted(e.user_id) && !e.isMaster) {
@@ -134,7 +141,7 @@ export class BiliIncentive extends plugin {
   }
 
   /**
-   * #激励列表 — HTML 渲染展示 13 槽位配置
+   * #激励列表 — HTML 渲染展示 20 槽位配置（直播 1-10，看播 11-20）
    */
   async cmdListLinks(e) {
     const cfg = loadUserConfig(e.user_id)
@@ -143,9 +150,24 @@ export class BiliIncentive extends plugin {
     }
 
     const links = Array.isArray(cfg.links) ? cfg.links : []
-    const claimTime = getPluginConfig()?.incentive?.claimTime || '01:00'
+    const pluginCfg = getPluginConfig()
 
-    const slots = []
+    // 从 cron 或旧版 claimTime 提取 HH:mm 显示
+    function cronToTime(cron, fallback) {
+      if (!cron) return fallback
+      const parts = cron.split(/\s+/)
+      if (parts.length < 3) return fallback
+      const h = parts[2].padStart(2, '0')
+      const m = parts[1].padStart(2, '0')
+      return `${h}:${m}`
+    }
+    const claimCron = pluginCfg?.incentive?.claimCron || ''
+    const claimTime = pluginCfg?.incentive?.claimTime || cronToTime(claimCron, '01:00')
+    const watchCron = pluginCfg?.incentive?.watchCron || ''
+    const watchTime = cronToTime(watchCron, '00:30')
+
+    const liveSlots = []
+    const watchSlots = []
     for (let i = 0; i < MAX_SLOTS; i++) {
       const url = (links[i] || '').trim()
       if (!url) continue
@@ -162,25 +184,34 @@ export class BiliIncentive extends plugin {
         } catch { /* 按需查询失败 */ }
       }
 
-      slots.push({
+      const slotData = {
         index: i + 1,
         award_name: info?.award_name || '',
         task_name: info?.task_name || '',
         task_desc: info?.task_desc || '',
         act_name: info?.act_name || '',
-      })
+      }
+      if (i < 10) {
+        liveSlots.push(slotData)
+      } else {
+        watchSlots.push(slotData)
+      }
     }
 
-    if (!slots.length) {
+    if (!liveSlots.length && !watchSlots.length) {
       return this.reply('[b站插件] 您的激励配置为空，使用 #激励添加 <序号> <链接> 填入链接')
     }
 
     const img = await render('incentive/list', 'index', {
       qq: e.user_id,
       claimTime,
+      watchTime,
       notifyGroup: cfg.notifyGroup || 0,
-      slots,
-      totalFilled: slots.length,
+      liveSlots,
+      watchSlots,
+      liveFilled: liveSlots.length,
+      watchFilled: watchSlots.length,
+      totalFilled: liveSlots.length + watchSlots.length,
       totalSlots: MAX_SLOTS,
       version: pluginVersion,
       yunzaiVersion,
