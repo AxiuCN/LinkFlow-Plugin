@@ -1,5 +1,5 @@
 import { loadUserConfig, saveUserConfig, createDefaultUserConfig, createGlobalDefaultConfig, loadWhitelist, saveWhitelist, isWhitelisted, MAX_SLOTS } from '../components/IncentiveConfig.js'
-import { onCronTick, onFallbackTick } from '../components/IncentiveScheduler.js'
+import { onCronTick, onFallbackTick, manualDailyClaim } from '../components/IncentiveScheduler.js'
 import { getPluginConfig } from '../components/config.js'
 import { getTaskInfo, setTaskInfo } from '../components/TaskCache.js'
 import { createClient } from '../components/Claimer.js'
@@ -18,6 +18,7 @@ export class BiliIncentive extends plugin {
         { reg: /^#激励添加\s+\d{1,2}\s+/i, fnc: 'cmdAddLink' },
         { reg: /^#激励列表$/i, fnc: 'cmdListLinks' },
         { reg: /^#激励删除\s+\d{1,2}$/i, fnc: 'cmdRemoveLink' },
+        { reg: /^#领取每日激励$/i, fnc: 'cmdDailyClaim' },
         { reg: /^#(添加|增加)激励白名单\s*/i, fnc: 'cmdAddWhitelist' },
         { reg: /^#(删除|移除)激励白名单\s*/i, fnc: 'cmdRemoveWhitelist' },
         { reg: /^#激励白名单$/i, fnc: 'cmdWhitelist' },
@@ -294,6 +295,43 @@ export class BiliIncentive extends plugin {
     const status = wl.enabled ? '启用' : '关闭'
     const users = wl.users.length ? wl.users.join(', ') : '无'
     this.reply(`[b站插件] 激励白名单 (${status})\n${users}`)
+  }
+
+  // ========== 手动领取 ==========
+
+  /**
+   * #领取每日激励 — 手动触发当前用户的每日任务激励领取
+   * 只领取全局配置 dailyTaskLinks 中的链接，不涉及个人 20 槽位
+   */
+  async cmdDailyClaim(e) {
+    if (!isWhitelisted(e.user_id) && !e.isMaster) {
+      return this.reply('[b站插件] 您不在白名单中，无权使用激励功能')
+    }
+
+    if (!loadUserConfig(e.user_id)) {
+      return this.reply('[b站插件] 您还没有配置。发送 #激励创建配置 开始')
+    }
+
+    const config = getPluginConfig()
+    const links = config?.incentive?.dailyTaskLinks?.filter(Boolean)
+    if (!links?.length) {
+      return this.reply('[b站插件] 当前无每日任务激励链接，请检查全局配置')
+    }
+
+    this.reply('[b站插件] 正在领取每日任务激励，请稍候...')
+
+    try {
+      const userData = await manualDailyClaim(e.user_id)
+      if (!userData) {
+        return this.reply('[b站插件] 领取结果为空，请稍后重试')
+      }
+
+      const img = await render('incentive/user', 'index', userData, 'png')
+      this.reply([segment.at(e.user_id), img], false)
+    } catch (err) {
+      logger.error('[Bilibili-Plugin] 手动领取每日激励异常:', err)
+      this.reply('[b站插件] 领取过程出现异常，请查看日志')
+    }
   }
 }
 

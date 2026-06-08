@@ -722,4 +722,21 @@ async function processUserFallback(qq, links) {
   return { qq, notifyGroup, slots, clearedCount: 0, mode: 'fallback' }
 }
 
-export { onCronTick, onFallbackTick }
+// ===================== 手动领取 =====================
+
+/**
+ * #领取每日激励 — 手动触发指定用户的每日任务激励领取
+ * 复用 processUserFallback 逻辑（tryClaimOnce、15s 间隔），仅执行单用户
+ * @param {string|number} qq
+ * @returns {Promise<object|null>} render('incentive/user', ...) 所需的数据，或 null
+ */
+async function manualDailyClaim(qq) {
+  const config = getPluginConfig()
+  const links = (config?.incentive?.dailyTaskLinks || []).filter(Boolean)
+  if (!links.length) return null
+
+  const result = await processUserFallback(qq, links)
+  return buildPersonalNotifyData(result, todayStr())
+}
+
+export { onCronTick, onFallbackTick, manualDailyClaim }
