@@ -12,9 +12,9 @@ const MAX_SLOTS = 20
 
 /** 添加/创建时的模板：qq.yaml.example（git 已追踪） */
 const userCfgTemplate = path.join(pluginRoot, 'config', 'incentive_config', 'qq.yaml.example')
-/** #激励创建配置 模板：incentive_config.yaml（运行时生成），.example 兜底 */
-const globalCfgTemplate = path.join(pluginRoot, 'config', 'incentive_config.yaml')
-const globalCfgExample = globalCfgTemplate + '.example'
+/** #激励创建配置 模板：defSet/incentive_config.yaml，.example 兜底 */
+const globalCfgTemplate = path.join(pluginRoot, 'defSet', 'incentive_config.yaml')
+const globalCfgExample = path.join(pluginRoot, 'config', 'incentive_config.yaml.example')
 /** 白名单模板（git 已追踪） */
 const whitelistTemplate = path.join(pluginRoot, 'defSet', 'incentive_config', 'whitelist.yaml')
 
