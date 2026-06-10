@@ -20,7 +20,8 @@ function isAlreadyClaimed(errMsg) {
 }
 
 /**
- * 从 API 错误字符串中提取 code 和 msg
+ * 从 API 错误字符串中提取最后一个 code 和 msg
+ * 多 worker 重试时 errLog 包含多次尝试，取最后一个反映最终结果
  * 兼容格式：code=202031 msg=xxx、code=-509 message=xxx、终态: code=202031 msg=xxx、领取失败: ...
  * 匹配不到时整句作为 msg
  * @param {string} errMsg
@@ -28,11 +29,11 @@ function isAlreadyClaimed(errMsg) {
  */
 function parseErrorCode(errMsg) {
   if (!errMsg) return { code: '?', msg: '未知错误' }
-  const codeMatch = errMsg.match(/code=(-?\d+)/)
-  const msgMatch = errMsg.match(/(?:msg|message)=([^;,]+)/)
+  const codes = errMsg.match(/code=(-?\d+)/g)
+  const msgs = errMsg.match(/(?:msg|message)=([^;,]+)/g)
   return {
-    code: codeMatch ? codeMatch[1] : '?',
-    msg: msgMatch ? msgMatch[1].trim() : errMsg,
+    code: codes ? codes[codes.length - 1].replace('code=', '') : '?',
+    msg: msgs ? msgs[msgs.length - 1].replace(/^(?:msg|message)=/i, '').trim() : errMsg,
   }
 }
 
