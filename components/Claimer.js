@@ -64,15 +64,20 @@ async function doClaim(taskId, qq, cancelSignal, logCb = null, awardInfo = null,
     awardInfo = await client.getAwardInfo(taskId, logCb)
   }
 
-  const cdkey = await client.claimAward(taskId, awardInfo, {
-    threadCount: Math.max(1, claimCfg.threadCount || 2),
-    maxRetry: 30,
-    retryInterval: claimCfg.retryInterval || 1.0,
-    cancelSignal,
-    logCb,
-  })
-
-  return { cdkey, awardInfo }
+  try {
+    const cdkey = await client.claimAward(taskId, awardInfo, {
+      threadCount: Math.max(1, claimCfg.threadCount || 2),
+      maxRetry: 30,
+      retryInterval: claimCfg.retryInterval || 1.0,
+      cancelSignal,
+      logCb,
+    })
+    return { cdkey, awardInfo }
+  } catch (e) {
+    // 即使失败也附带 awardInfo，供上层展示任务名
+    e.awardInfo = awardInfo
+    throw e
+  }
 }
 
 export { createClient, doLogin, doClaim }

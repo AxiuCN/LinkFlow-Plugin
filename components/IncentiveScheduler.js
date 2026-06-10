@@ -268,6 +268,8 @@ async function startClaimRound(qq, cfg, cancelSignal, slotRange = { start: 0, en
       slotsToClear.add(slotIdx)
       lastCode = '0'
     } catch (err) {
+      // doClaim 失败时附带了 awardInfo，用它兜底展示任务名
+      if (!cachedAwardInfo?.act_name && err.awardInfo) cachedAwardInfo = err.awardInfo
       const isDeadline = cancelSignal.cancelled
       const errMsg = isDeadline ? '达到全局截止时间' : err.message
       const { code, msg } = parseErrorCode(errMsg)
