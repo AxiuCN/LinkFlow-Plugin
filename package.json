@@ -4,6 +4,7 @@
   "description": "B站综合功能插件，支持UP主激励计划抢奖励、直播推送等功能",
   "author": "阿修Axiu",
   "type": "module",
+  "license": "GPL-3.0",
   "repository": {
     "type": "git",
     "url": "https://github.com/AxiuCN/Bilibili-Plugin.git"
