@@ -44,6 +44,7 @@ function getTaskInfo(taskId) {
   const cache = loadCache()
   const entry = cache[taskId]
   if (!entry) return null
+  if (!entry.act_id) return null
   const age = Date.now() - new Date(entry.cached_at).getTime()
   if (age > CACHE_TTL_MS) return null
   return entry
@@ -57,6 +58,7 @@ function getTaskInfo(taskId) {
 function setTaskInfo(taskId, info) {
   const cache = loadCache()
   cache[taskId] = {
+    act_id: info.act_id || '',
     award_name: info.award_name || '',
     act_name: info.act_name || '',
     task_name: info.task_name || '',
