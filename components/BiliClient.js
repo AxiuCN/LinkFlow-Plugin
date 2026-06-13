@@ -302,7 +302,6 @@ class BiliClient {
       }
     }
 
-    // -101: cookie 失效
     if (code === -101 || message.includes('账号未登录')) {
       return { success: false, code: -101, message: 'Cookie失效', cdkey: '' }
     }

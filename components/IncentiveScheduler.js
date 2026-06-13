@@ -194,7 +194,6 @@ async function startClaimRound(qq, cfg, cancelSignal, slotRange = { start: 0, en
       continue
     }
 
-    // 提取 taskId
     let taskId = null
     try { taskId = new URL(url).searchParams.get('task_id') } catch {}
     if (!taskId) {
@@ -338,7 +337,6 @@ async function startClaimRound(qq, cfg, cancelSignal, slotRange = { start: 0, en
         break
       }
 
-      // 归类失败原因
       const failStatus = categorizeError(code, msg)
       lastCode = code
 
