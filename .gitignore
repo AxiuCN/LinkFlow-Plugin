@@ -13,3 +13,4 @@ node_modules/
 
 # Claude Code 工作区
 .claude/
+CLAUDE.md
