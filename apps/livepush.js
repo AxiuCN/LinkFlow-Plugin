@@ -151,6 +151,7 @@ export class BiliLivePush extends plugin {
    * 默认 → 发送两个选项供点击
    */
   async listLivePush(e) {
+    const isGroup = e.message_type === 'group'
     let result, key
 
     if (/.*群.*/.test(e.msg)) {
@@ -159,8 +160,12 @@ export class BiliLivePush extends plugin {
     } else if (/.*我.*/.test(e.msg)) {
       result = LiveSubStore.list({ user_id: e.user_id })
       key = 'groups'
+    } else if (!isGroup) {
+      // 私聊无参数 → 自动展示个人订阅
+      result = LiveSubStore.list({ user_id: e.user_id })
+      key = 'groups'
     } else {
-      // 无参数时发送点击选项
+      // 群聊无参数 → 发送两个选项供点击
       const em = (cmd) => Bot.em('message', {
         self_id: e.self_id,
         message_id: e.message_id,
@@ -178,7 +183,17 @@ export class BiliLivePush extends plugin {
       return true
     }
 
-    result = await LiveSubStore.enrichWithRoomInfo(result)
+    return this._replyList(e, result, key)
+  }
+
+  /**
+   * 渲染订阅列表并回复
+   * @param {object} e 消息事件
+   * @param {Array} _result list() 原始结果
+   * @param {string} key 'users'|'groups'
+   */
+  async _replyList(e, _result, key) {
+    const result = await LiveSubStore.enrichWithRoomInfo(_result)
     if (!result || result.length === 0) return e.reply('暂无订阅。')
 
     const msgs = []
@@ -187,7 +202,7 @@ export class BiliLivePush extends plugin {
       if (face) entries.push(segment.image(face))
       entries.push(`昵称: ${uname || '未知'}\n`)
       entries.push(`用户uid: ${uid}\n`)
-      entries.push(`订阅${key}:\n${item[key].map(id => (id == 99999) ? '匿名' : id).join('\n')}`)
+      entries.push(`订阅${key}:\n${item[key].map(id => id == 0 ? '全体' : id == 99999 ? '匿名' : id).join('\n')}`)
       msgs.push(entries)
     }
 
@@ -195,4 +210,5 @@ export class BiliLivePush extends plugin {
     e.reply(forwardMsg)
     return true
   }
+
 }

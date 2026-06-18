@@ -54,3 +54,18 @@ incentive:
     - ''
     - ''
     - ''
+
+# B站直播推送（apps/livepush.js）
+livePush:
+  # 是否启用
+  enabled: true
+  # cron 表达式（秒 分 时 日 月 周）
+  cron: '10 * * * * *'
+  # 是否推送下播消息
+  endPush: true
+  # 是否使用合并转发推送
+  forward: false
+  # 标题变更时是否再次推送
+  rePush: false
+  # 群间推送间隔（秒）
+  sleep: 0
