@@ -10,16 +10,16 @@ export class BiliLivePush extends plugin {
       name: 'BiliLivePush',
       priority: -114500,
       rule: [
-        { reg: '^(#|原神|绝区零|星铁)?(全体|匿名)?订阅直播', fnc: 'setLivePush' },
-        { reg: '^(#|原神|绝区零|星铁)?(全体|匿名)?取消直播', fnc: 'delLivePush' },
-        { reg: '^(#|原神|绝区零|星铁)?(全体|匿名)?订阅UP',   fnc: 'setLivePushByUid' },
-        { reg: '^(#|原神|绝区零|星铁)?(全体|匿名)?取消UP',   fnc: 'delLivePushByUid' },
-        { reg: '^(#|原神|绝区零|星铁)?(本?群|我的?)?订阅(列表|list)?', fnc: 'listLivePush' },
+        { reg: '^#?(全体|匿名)?订阅直播', fnc: 'setLivePush' },
+        { reg: '^#?(全体|匿名)?取消订阅直播', fnc: 'delLivePush' },
+        { reg: '^#?(全体|匿名)?订阅UP',   fnc: 'setLivePushByUid' },
+        { reg: '^#?(全体|匿名)?取消订阅UP',   fnc: 'delLivePushByUid' },
+        { reg: '^#?(本?群|我的?)?订阅(列表|list)?', fnc: 'listLivePush' },
       ],
     })
 
     // 从配置读取 cron，回退到默认值
-    let cron = '10 */1 * * * *'
+    let cron = '10 * * * * *'
     try {
       const cfg = getPluginConfig()
       if (cfg.livePush?.cron) cron = cfg.livePush.cron

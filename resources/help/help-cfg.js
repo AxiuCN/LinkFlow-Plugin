@@ -35,8 +35,8 @@ export const helpList = [
     list: [
       { icon: 71, title: '#订阅直播 <room_id>', desc: '订阅B站直播间开播推送' },
       { icon: 71, title: '#订阅UP <uid>', desc: '订阅B站UP主开播推送' },
-      { icon: 92, title: '#取消直播 <room_id>', desc: '取消订阅B站直播间' },
-      { icon: 92, title: '#取消UP <uid>', desc: '取消订阅B站UP主' },
+      { icon: 92, title: '#取消订阅直播 <room_id>', desc: '取消订阅B站直播间' },
+      { icon: 92, title: '#取消订阅UP <uid>', desc: '取消订阅B站UP主' },
       { icon: 80, title: '#本群订阅列表', desc: '查看本群直播订阅' },
       { icon: 80, title: '#我的订阅列表', desc: '查看个人直播订阅' },
       { icon: 74, title: '前缀', desc: '指令前加"全体"@全体，"匿名"不@自己' },
