@@ -82,6 +82,9 @@ class LiveScheduler {
       `开播时间: ${moment(live_time).format('YYYY-MM-DD HH:mm:ss')}\n`,
       `直播间地址: https://live.bilibili.com/${room_id}`,
     ]
+    // 彩蛋
+    const startHour = moment(live_time).hour()
+    if (startHour >= 0 && startHour < 6) message.push('\n逆天小子，这个点你还不去睡')
 
     if (cfg.livePush?.forward) {
       Bot.pickGroup(Number(groupId)).sendMsg(
@@ -103,6 +106,9 @@ class LiveScheduler {
       '主播下播la~~~~\n',
       `本次直播时长: ${liveDuration}`,
     ]
+    // 彩蛋
+    const endHour = moment().hour()
+    if (endHour >= 0 && endHour < 6) message.push('\n深夜场结束了？')
 
     if (cfg.livePush?.forward) {
       Bot.pickGroup(Number(groupId)).sendMsg(
@@ -128,7 +134,10 @@ class LiveScheduler {
     str += tempTime.days() ? tempTime.days() + '日' : ''
     str += tempTime.hours() ? tempTime.hours() + '小时' : ''
     str += tempTime.minutes() ? tempTime.minutes() + '分钟' : ''
+    // 彩蛋
     if (dura <= 5 * 60 * 1000) str += `\n(没关系的, ${str}也很厉害了)`
+    if (dura > 10 * 60 * 60 * 1000) str += '\n尽职尽责这一块'
+    if (dura < 3 * 60 * 1000) str += '\n好吧，我编不下去了，这货连3分钟都不到，唉~'
     return str
   }
 
