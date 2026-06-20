@@ -57,6 +57,7 @@ const STATUS_DISPLAY_MAP = {
   config_error: '配置错误',
   api_error: 'API客户端创建错误',
   failed: '领取失败',
+  reward_type_error: '奖励类型错误',
 }
 
 /**
@@ -73,6 +74,7 @@ function categorizeError(code, msg) {
   if (code === '202129') return 'ended'
   if (code === '202101') return 'suspicious'
   if (code === '-101') return 'logged_out'
+  if (code === '202030') return 'reward_type_error'
   if (code === '202120') return 'not_yet_time'
   if (code === '-509' || code === '-702' || code === '-705') return 'failed'
   // 消息内容模糊匹配
@@ -445,7 +447,7 @@ function buildGroupNotifyData(gid, members, date) {
   let totalClaimed = 0
 
   // 群通知展示所有非空状态（包含"未开始"和各类错误）
-  const showStatuses = ['success', 'already_claimed', 'unclaimed', 'incomplete', 'exhausted',
+  const showStatuses = ['success', 'already_claimed', 'unclaimed', 'reward_type_error', 'incomplete', 'exhausted',
     'suspicious', 'skipped', 'no_qualification', 'logged_out', 'not_yet_time',
     'ended', 'config_error', 'api_error', 'failed']
 
@@ -499,7 +501,7 @@ function buildGroupNotifyData(gid, members, date) {
 function buildGroupTextFallback(gid, members) {
   const modeLabel = members[0]?.mode === 'watch' ? '看播' : ''
   const lines = [`[b站插件] 群 ${gid} ${modeLabel}激励领取结果`]
-  const showStatuses = ['success', 'already_claimed', 'unclaimed', 'incomplete', 'exhausted',
+  const showStatuses = ['success', 'already_claimed', 'unclaimed', 'reward_type_error', 'incomplete', 'exhausted',
     'suspicious', 'skipped', 'no_qualification', 'logged_out', 'not_yet_time',
     'ended', 'config_error', 'api_error', 'failed']
 
@@ -626,7 +628,7 @@ function buildPersonalTextFallback(ur) {
     const display = STATUS_DISPLAY_MAP[s.status] || '未知错误'
     if (s.status === 'success') {
       lines.push(`${prefix}${display}${s.cdkey ? ` cdkey=${s.cdkey}` : ''}`)
-    } else if (s.status === 'unclaimed') {
+    } else if (s.status === 'unclaimed' || s.status === 'reward_type_error') {
       // 未领取带 code 方便排查
       lines.push(`${prefix}${display} code=${s.errorCode}`)
     } else {
