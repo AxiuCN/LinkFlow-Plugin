@@ -5,6 +5,7 @@ import { getPluginConfig } from '../../components/config.js'
 import { render } from '../../components/render.js'
 import { pluginVersion, yunzaiVersion } from '../../components/pluginVersion.js'
 import { YTDLP_DEFAULT_TIMEOUT_MS, YTDLP_DEFAULT_MAX_SIZE_MB } from '../../components/constants.js'
+import { isGroupAllowed } from './Whitelist.js'
 
 /**
  * 处理消息中的链接：提取 → 解析 → 展示 → 下载
@@ -38,7 +39,7 @@ async function handleMessage(e, text) {
       await tryDownload(e, url, platform.key, meta)
 
     } catch (err) {
-      logger?.error(`[LinkFlow-LinkParse] 处理 ${platform.key} URL 异常:`, err)
+      logger?.error(`[LinkFlow] 处理 ${platform.key} URL 异常:`, err)
     }
   }
 }
@@ -59,7 +60,7 @@ async function showInfoCard(e, meta, platform) {
       e.reply(img)
     }
   } catch (err) {
-    logger?.error('[LinkFlow-LinkParse] 渲染信息卡失败:', err)
+    logger?.error('[LinkFlow] 渲染信息卡失败:', err)
   }
 }
 
@@ -74,10 +75,7 @@ async function tryDownload(e, url, platformKey, meta) {
   if (!dlCfg?.enabled) return
 
   // 群白名单检查
-  if (e.isGroup) {
-    const allowGroups = dlCfg.allowGroups || []
-    if (allowGroups.length > 0 && !allowGroups.includes(String(e.group_id))) return
-  }
+  if (e.isGroup && !isGroupAllowed(e.group_id)) return
 
   // 大小预估检查
   const maxSizeMb = dlCfg.maxSize || YTDLP_DEFAULT_MAX_SIZE_MB
@@ -109,7 +107,7 @@ async function tryDownload(e, url, platformKey, meta) {
       }
     }
   } catch (err) {
-    logger?.error('[LinkFlow-LinkParse] 下载失败:', err.message)
+    logger?.error('[LinkFlow] 下载失败:', err.message)
   }
 }
 
@@ -121,10 +119,7 @@ async function tryDownload(e, url, platformKey, meta) {
 function isGroupEnabled(groupId) {
   const config = getPluginConfig()
   if (!config?.linkparse?.enabled) return false
-  // 未配置白名单则默认所有群开启
-  const allowGroups = config?.linkparse?.download?.allowGroups || []
-  if (allowGroups.length === 0) return true
-  return allowGroups.includes(String(groupId))
+  return isGroupAllowed(groupId)
 }
 
 export { handleMessage, isGroupEnabled }

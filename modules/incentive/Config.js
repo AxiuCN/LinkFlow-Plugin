@@ -31,7 +31,7 @@ function loadWhitelist() {
     }
     return YAML.parse(fs.readFileSync(whitelistPath, 'utf8')) || { enabled: true, users: [] }
   } catch (e) {
-    logger.error('[Bilibili-Plugin] 读取白名单失败:', e)
+    logger.error('[LinkFlow] 读取白名单失败:', e)
     return { enabled: true, users: [] }
   }
 }
@@ -47,7 +47,7 @@ function createDefaultWhitelist() {
       content = fs.readFileSync(whitelistTemplate, 'utf8')
     }
   } catch (e) {
-    logger.warn('[Bilibili-Plugin] 读取白名单模板失败，使用默认:', e)
+    logger.warn('[LinkFlow] 读取白名单模板失败，使用默认:', e)
   }
   content = renderTemplate(content, { whitelist_enabled: 'true' })
   fs.mkdirSync(path.dirname(whitelistPath), { recursive: true })
@@ -89,7 +89,7 @@ function saveWhitelist(data) {
 
     fs.writeFileSync(filePath, result.join('\n'), 'utf8')
   } catch (e) {
-    logger.warn('[Bilibili-Plugin] 文本更新白名单失败，使用 YAML 回退:', e)
+    logger.warn('[LinkFlow] 文本更新白名单失败，使用 YAML 回退:', e)
     fs.writeFileSync(filePath, YAML.stringify({
       enabled: data.enabled !== false,
       users: data.users || [],
@@ -135,7 +135,7 @@ function loadUserConfig(qq) {
     if (!fs.existsSync(file)) return null
     return YAML.parse(fs.readFileSync(file, 'utf8')) || null
   } catch (e) {
-    logger.error(`[Bilibili-Plugin] 读取用户 ${qq} 配置失败:`, e)
+    logger.error(`[LinkFlow] 读取用户 ${qq} 配置失败:`, e)
     return null
   }
 }
@@ -191,7 +191,7 @@ function saveUserConfig(qq, data) {
 
     fs.writeFileSync(filePath, lines.join('\n'), 'utf8')
   } catch (e) {
-    logger.warn('[Bilibili-Plugin] 文本更新配置失败，使用 YAML 回退:', e)
+    logger.warn('[LinkFlow] 文本更新配置失败，使用 YAML 回退:', e)
     fs.mkdirSync(userCfgDir, { recursive: true })
     fs.writeFileSync(filePath, YAML.stringify(normalized, null, 2), 'utf8')
   }
@@ -223,7 +223,7 @@ function createDefaultUserConfig(qq, notifyGroup = 0, templatePath = userCfgTemp
       content = fs.readFileSync(templatePath, 'utf8')
     }
   } catch (e) {
-    logger.warn('[Bilibili-Plugin] 读取配置模板失败，使用默认:', e)
+    logger.warn('[LinkFlow] 读取配置模板失败，使用默认:', e)
   }
 
   content = renderTemplate(content, { notifyGroup: notifyGroup || 0 })

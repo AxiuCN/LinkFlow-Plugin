@@ -37,7 +37,7 @@ export async function render(app, tpl, data = {}, imgType = 'jpeg') {
 
   // 版权信息
   data.sys = {
-    copyright: `Created By Yunzai-Bot & ${pluginName}`
+    copyright: `Created By TRSS-yunzai & ${pluginName}`
   }
 
   return await puppeteer.screenshot(`${pluginName}/${app}/${tpl}`, data)

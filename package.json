@@ -7,7 +7,7 @@
   "license": "GPL-3.0",
   "repository": {
     "type": "git",
-    "url": "https://github.com/AxiuCN/Bilibili-Plugin.git"
+    "url": "https://github.com/AxiuCN/LinkFlow-Plugin.git"
   },
   "dependencies": {
     "yaml": "^2.4.5"

@@ -329,7 +329,7 @@ export class BiliIncentive extends plugin {
       const img = await render('incentive/user', 'index', userData, 'png')
       this.reply([segment.at(e.user_id), img], false)
     } catch (err) {
-      logger.error('[Bilibili-Plugin] 手动领取每日激励异常:', err)
+      logger.error('[LinkFlow] 手动领取每日激励异常:', err)
       this.reply('[b站插件] 领取过程出现异常，请查看日志')
     }
   }

@@ -49,7 +49,7 @@ async function getVideoInfo(bvid) {
       tname: d.tname,
     }
   } catch (e) {
-    logger?.error('[LinkFlow-BiliVideo] getVideoInfo 异常:', e)
+    logger?.error('[LinkFlow] getVideoInfo 异常:', e)
     return null
   }
 }
@@ -89,7 +89,7 @@ async function getUserInfo(uid) {
       liveRoomId: d.live_room?.roomid || null,
     }
   } catch (e) {
-    logger?.error('[LinkFlow-BiliVideo] getUserInfo 异常:', e)
+    logger?.error('[LinkFlow] getUserInfo 异常:', e)
     return null
   }
 }
@@ -129,7 +129,7 @@ async function searchVideo(keyword, page = 1, pageSize = 5) {
       })),
     }
   } catch (e) {
-    logger?.error('[LinkFlow-BiliVideo] searchVideo 异常:', e)
+    logger?.error('[LinkFlow] searchVideo 异常:', e)
     return null
   }
 }

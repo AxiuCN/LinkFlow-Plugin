@@ -137,7 +137,7 @@ export class LinkFlowSubscribe extends plugin {
       }, 'png')
       return e.reply(img)
     } catch (err) {
-      logger?.error('[LinkFlow-Subscribe] 渲染动态列表失败:', err)
+      logger?.error('[LinkFlow] 渲染动态列表失败:', err)
       // 文本降级
       const lines = ['[LinkFlow] 动态订阅列表']
       for (const item of listData) {

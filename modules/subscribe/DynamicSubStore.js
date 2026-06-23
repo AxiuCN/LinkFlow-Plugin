@@ -23,7 +23,7 @@ class DynamicSubStore {
         return JSON.parse(fs.readFileSync(DATA_FILE, 'utf8'))
       }
     } catch (e) {
-      logger?.error('[LinkFlow-DynamicSub] 读取数据失败:', e)
+      logger?.error('[LinkFlow] 读取数据失败:', e)
     }
     return { group: {}, private: {} }
   }
@@ -34,7 +34,7 @@ class DynamicSubStore {
       if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true })
       fs.writeFileSync(DATA_FILE, JSON.stringify(raw, null, '\t'), 'utf8')
     } catch (e) {
-      logger?.error('[LinkFlow-DynamicSub] 写入数据失败:', e)
+      logger?.error('[LinkFlow] 写入数据失败:', e)
     }
   }
 

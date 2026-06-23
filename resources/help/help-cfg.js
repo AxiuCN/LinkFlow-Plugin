@@ -1,5 +1,5 @@
 export const helpCfg = {
-  title: '#linkflow帮助',
+  title: '#LinkFlow帮助',
   subTitle: 'LinkFlow-Plugin v2.0.0'
 }
 

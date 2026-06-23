@@ -7,6 +7,7 @@ import path from 'node:path'
 import YAML from 'yaml'
 import { pluginRoot } from '../components/constants.js'
 import { loadUserConfig, saveUserConfig, listUserConfigs, MAX_SLOTS } from '../modules/incentive/Config.js'
+import { loadWhitelist, saveWhitelist } from '../modules/linkparse/Whitelist.js'
 import * as mainMod from './main.js'
 import * as linkparseMod from './linkparse.js'
 import * as subscribeMod from './subscribe.js'
@@ -27,9 +28,9 @@ const allDefaults = {
 function getTemplate(filePath) {
   try {
     if (fs.existsSync(filePath)) return fs.readFileSync(filePath, 'utf8')
-    logger.error(`[LinkFlow-Guoba] 模板不存在: ${filePath}`)
+    logger.error(`[LinkFlow] 模板不存在: ${filePath}`)
   } catch (e) {
-    logger.error(`[LinkFlow-Guoba] 读取模板失败: ${e}`)
+    logger.error(`[LinkFlow] 读取模板失败: ${e}`)
   }
   return ''
 }
@@ -45,9 +46,55 @@ function parseYaml(filePath) {
   try {
     if (fs.existsSync(filePath)) return YAML.parse(fs.readFileSync(filePath, 'utf8')) || {}
   } catch (e) {
-    logger.error(`[LinkFlow-Guoba] 解析失败: ${filePath}`, e)
+    logger.error(`[LinkFlow] 解析失败: ${filePath}`, e)
   }
   return {}
+}
+
+/**
+ * 递归扁平化锅巴传入的数据
+ * 锅巴可能传入嵌套对象 { linkparse: { bilibili: { enabled: true } } }
+ * 也可能传入扁平的 { 'linkparse.bilibili.enabled': true }
+ * 统一转为 underscore 分隔的扁平 key: { linkparse_bilibili_enabled: true }
+ *
+ * @param {object} obj — 锅巴传入的 data
+ * @param {string} [prefix=''] — 递归前缀
+ * @returns {object} 扁平化后的键值对
+ */
+function flattenForTemplate(obj, prefix = '') {
+  if (obj === null || typeof obj !== 'object' || Array.isArray(obj)) {
+    return { [prefix]: obj }
+  }
+  const result = {}
+  for (const [key, val] of Object.entries(obj)) {
+    const newKey = prefix ? `${prefix}_${key}` : key
+    if (val !== null && typeof val === 'object' && !Array.isArray(val) && !(val instanceof Date)) {
+      Object.assign(result, flattenForTemplate(val, newKey))
+    } else {
+      result[newKey] = val
+    }
+  }
+  return result
+}
+
+/**
+ * 从扁平或嵌套 data 中安全取值
+ * 先尝试 flat key（如 'incentive.users'），再尝试 nested path
+ * @param {object} data
+ * @param {string} flatKey — 点分隔的扁平键名
+ * @returns {any}
+ */
+function getNested(data, flatKey) {
+  // 优先 flat 取值（锅巴常见格式）
+  if (data[flatKey] !== undefined) return data[flatKey]
+  // 嵌套取值
+  const parts = flatKey.split('.')
+  let cur = data
+  for (const p of parts) {
+    if (cur === null || typeof cur !== 'object') return undefined
+    cur = cur[p]
+  }
+  return cur
 }
 
 export function supportGuoba() {
@@ -58,7 +105,7 @@ export function supportGuoba() {
       description: '流媒体聚合解析+B站综合功能插件，支持10平台链接解析下载、UP主动态/直播订阅推送、B站激励计划抢奖励',
       author: ['阿修Axiu'],
       authorLink: ['https://github.com/AxiuCN'],
-      link: 'https://github.com/AxiuCN/Bilibili-Plugin',
+      link: 'https://github.com/AxiuCN/LinkFlow-Plugin',
       isV3: true,
       isV2: false,
       showInMenu: 'auto',
@@ -107,6 +154,7 @@ export function supportGuoba() {
         const slive = subscribe.live || {}
         const spush = subscribe.push || {}
 
+        // 用户激励配置列表
         const userList = listUserConfigs().map(qq => {
           const cfg = loadUserConfig(qq) || { links: [], notifyGroup: 0 }
           const links = Array.isArray(cfg.links) ? cfg.links : []
@@ -119,7 +167,9 @@ export function supportGuoba() {
 
         const dailyLinks = userCfg.incentive?.dailyTaskLinks || []
         const liveCron = userCfg.incentive?.liveCron || userCfg.incentive?.claimCron
-        const allowGroups = dl.allowGroups || []
+
+        // 群白名单 — 从独立文件读取
+        const whitelist = loadWhitelist()
 
         return {
           // 全局
@@ -141,11 +191,13 @@ export function supportGuoba() {
           'linkparse.download.enabled': dl.enabled ?? true,
           'linkparse.download.timeout': dl.timeout ?? 600,
           'linkparse.download.maxSize': dl.maxSize ?? 100,
-          'linkparse.download.allowGroups': allowGroups.map(g => ({ groupId: String(g) })),
+          // 群白名单 GSubForm
+          'linkparse.download.allowGroups': (whitelist.groups || []).map(g => ({ groupId: String(g) })),
 
           // 订阅
           'subscribe.dynamic.enabled': sdyn.enabled ?? true,
           'subscribe.dynamic.cron': sdyn.cron ?? '0 */23 * * * ?',
+          'subscribe.dynamic.timeRange': sdyn.timeRange ?? 7200,
           'subscribe.live.enabled': slive.enabled ?? true,
           'subscribe.live.cron': slive.cron ?? '10 * * * * ?',
           'subscribe.live.endPush': slive.endPush ?? true,
@@ -178,75 +230,49 @@ export function supportGuoba() {
 
       setConfigData(data, { Result }) {
         try {
+          // 1. 扁平化锅巴数据（兼容嵌套和扁平两种格式）
+          const flatData = flattenForTemplate(data)
+
+          // 2. 合并默认值 + 用户值
           const values = { ...allDefaults }
-          for (const [key, val] of Object.entries(data)) {
-            if (key === 'incentive.users' || key.startsWith('incentive.users')) continue
-            if (key === 'linkparse.download.allowGroups' || key.startsWith('linkparse.download.allowGroups')) continue
-            values[key.replace(/\./g, '_')] = val
+          for (const [key, val] of Object.entries(flatData)) {
+            // 跳过 GSubForm 数组字段（单独处理）
+            if (key === 'incentive_users' || key.startsWith('incentive_users_')) continue
+            if (key === 'linkparse_download_allowGroups' || key.startsWith('linkparse_download_allowGroups_')) continue
+            values[key] = val
           }
+
+          // 3. 生成 config.yaml（模板变量替换）
           const content = generateConfig(defaultConfigPath, values)
           const dir = path.dirname(configPath)
           if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true })
           fs.writeFileSync(configPath, content, 'utf8')
 
-          // 保存用户配置
-          const users = data['incentive.users'] || []
+          // 4. 保存激励用户配置（兼容嵌套/flat）
+          const users = getNested(data, 'incentive.users') || []
           for (const entry of users) {
             if (!entry.qq) continue
             const links = Array.from({ length: MAX_SLOTS }, (_, i) => entry[`link${i + 1}`] || '')
             saveUserConfig(String(entry.qq), { links, notifyGroup: entry.notifyGroup || 0 })
           }
 
-          // 保存群白名单（GSubForm 返回数组 {groupId} → 转为 allowGroups）
-          const allowGroups = data['linkparse.download.allowGroups'] || []
+          // 5. 保存群白名单到独立文件（兼容嵌套/flat）
+          const allowGroups = getNested(data, 'linkparse.download.allowGroups') || []
           if (allowGroups.length > 0 && typeof allowGroups[0] === 'object') {
-            // GSubForm 返回对象数组，提取 groupId
-            // 文本编辑 config.yaml 更新 allowGroups 列表
             const groupIds = allowGroups.map(g => g.groupId || g.id || '').filter(Boolean)
-            if (groupIds.length > 0) {
-              try {
-                let cfgContent = fs.readFileSync(configPath, 'utf8')
-                const lines = cfgContent.split('\n')
-                let inDownload = false
-                let inAllowGroups = false
-                let allowGroupsIdx = -1
-                for (let i = 0; i < lines.length; i++) {
-                  const line = lines[i]
-                  if (/^\s*download:\s*$/.test(line)) inDownload = true
-                  else if (inDownload && /^\s*[a-z]/.test(line) && !/^\s/.test(line)) inDownload = false
-                  if (inDownload && /^\s*allowGroups:\s*$/.test(line)) {
-                    allowGroupsIdx = i
-                    inAllowGroups = true
-                    continue
-                  }
-                  if (inAllowGroups && /^\s*-/.test(line)) {
-                    lines.splice(i, 1)
-                    i--
-                    continue
-                  }
-                  if (inAllowGroups && !/^\s*-/.test(line) && !/^\s*$/.test(line) && !/^\s*#/.test(line)) {
-                    inAllowGroups = false
-                    // 在前面插入新列表
-                    const indent = '  '
-                    const newItems = groupIds.map(g => `${indent}- '${g}'`)
-                    lines.splice(i, 0, ...newItems)
-                    break
-                  }
-                }
-                if (inAllowGroups && allowGroupsIdx >= 0) {
-                  // 仍在 allowGroups 区域，追加到文件末尾之前
-                  const indent = '  '
-                  const newItems = groupIds.map(g => `${indent}- '${g}'`)
-                  lines.splice(allowGroupsIdx + 1, 0, ...newItems)
-                }
-                fs.writeFileSync(configPath, lines.join('\n'), 'utf8')
-              } catch {}
-            }
+            const wl = loadWhitelist()
+            wl.groups = groupIds
+            saveWhitelist(wl)
+          } else {
+            // 空数组 → 清空白名单
+            const wl = loadWhitelist()
+            wl.groups = []
+            saveWhitelist(wl)
           }
 
           return Result.ok({}, '保存成功~')
         } catch (e) {
-          logger.error('[LinkFlow-Guoba] 保存配置失败:', e)
+          logger.error('[LinkFlow] 保存配置失败:', e)
           return Result.error('保存失败')
         }
       },

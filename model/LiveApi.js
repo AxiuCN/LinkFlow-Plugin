@@ -18,13 +18,13 @@ class LiveBiliApi {
       )
       const json = await res.json()
       if (json.code !== 0) {
-        logger?.warn(`[Bilibili-Plugin] 查询直播间 ${room_id} 失败: ${json.msg || json.message}`)
+        logger?.warn(`[LinkFlow] 查询直播间 ${room_id} 失败: ${json.msg || json.message}`)
         return null
       }
       const { uid, online, live_status, user_cover, live_time, title } = json.data
       return { uid, room_id, online, live_status, user_cover, live_time, title }
     } catch (e) {
-      logger?.error(`[Bilibili-Plugin] 查询直播间 ${room_id} 异常:`, e)
+      logger?.error(`[LinkFlow] 查询直播间 ${room_id} 异常:`, e)
       return null
     }
   }
@@ -42,13 +42,13 @@ class LiveBiliApi {
       )
       const json = await res.json()
       if (json.code !== 0) {
-        logger?.warn(`[Bilibili-Plugin] 查询用户 ${uid} 失败: ${json.msg || json.message}`)
+        logger?.warn(`[LinkFlow] 查询用户 ${uid} 失败: ${json.msg || json.message}`)
         return null
       }
       const { room_id, info } = json.data
       return { uid, room_id, uname: info?.uname, face: info?.face }
     } catch (e) {
-      logger?.error(`[Bilibili-Plugin] 查询用户 ${uid} 异常:`, e)
+      logger?.error(`[LinkFlow] 查询用户 ${uid} 异常:`, e)
       return null
     }
   }
@@ -72,12 +72,12 @@ class LiveBiliApi {
       )
       const json = await res.json()
       if (json.code !== 0) {
-        logger?.warn(`[Bilibili-Plugin] 批量查询直播间失败: ${json.msg || json.message}`)
+        logger?.warn(`[LinkFlow] 批量查询直播间失败: ${json.msg || json.message}`)
         return null
       }
       return json.data
     } catch (e) {
-      logger?.error('[Bilibili-Plugin] 批量查询直播间异常:', e)
+      logger?.error('[LinkFlow] 批量查询直播间异常:', e)
       return null
     }
   }

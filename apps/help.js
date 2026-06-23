@@ -56,7 +56,7 @@ export class LinkFlowHelp extends plugin {
       if (!img) return e.reply('[LinkFlow] 帮助图生成失败，请重试。')
       return e.reply(img)
     } catch (err) {
-      logger.error('[LinkFlow-Plugin] 帮助图生成失败:', err)
+      logger.error('[LinkFlow] 帮助图生成失败:', err)
       return e.reply('[LinkFlow] 帮助图生成失败，请重试。')
     }
   }

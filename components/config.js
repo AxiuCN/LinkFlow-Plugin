@@ -17,7 +17,7 @@ function getPluginConfig() {
       return YAML.parse(content) || {}
     }
   } catch (e) {
-    logger.error('[Bilibili-Plugin] 读取配置文件失败:', e)
+    logger.error('[LinkFlow] 读取配置文件失败:', e)
   }
   return {}
 }
@@ -58,9 +58,9 @@ function removeDailyTaskLink(url) {
     }
 
     fs.writeFileSync(configPath, lines.join('\n'), 'utf8')
-    logger.info(`[Bilibili-Plugin] 已从 dailyTaskLinks 中移除已结束链接: ${url}`)
+    logger.info(`[LinkFlow] 已从 dailyTaskLinks 中移除已结束链接: ${url}`)
   } catch (e) {
-    logger.error('[Bilibili-Plugin] 移除 dailyTaskLink 失败:', e)
+    logger.error('[LinkFlow] 移除 dailyTaskLink 失败:', e)
   }
 }
 

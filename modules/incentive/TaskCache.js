@@ -17,7 +17,7 @@ function loadCache() {
     if (!fs.existsSync(cacheFile)) return {}
     return JSON.parse(fs.readFileSync(cacheFile, 'utf8')) || {}
   } catch (e) {
-    logger.error('[Bilibili-Plugin] 读取奖励缓存失败:', e)
+    logger.error('[LinkFlow] 读取奖励缓存失败:', e)
     return {}
   }
 }
@@ -31,7 +31,7 @@ function saveCache(data) {
     fs.mkdirSync(path.dirname(cacheFile), { recursive: true })
     fs.writeFileSync(cacheFile, JSON.stringify(data, null, 2), 'utf8')
   } catch (e) {
-    logger.error('[Bilibili-Plugin] 写入奖励缓存失败:', e)
+    logger.error('[LinkFlow] 写入奖励缓存失败:', e)
   }
 }
 

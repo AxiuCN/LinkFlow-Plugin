@@ -17,7 +17,7 @@ function ensureConfig(name) {
   const example = path.join(configDir, `${name}.example`)
   if (!fs.existsSync(target) && fs.existsSync(example)) {
     fs.copyFileSync(example, target)
-    logger.info(`[LinkFlow-Plugin] 已从 ${name}.example 创建配置文件`)
+    logger.info(`[LinkFlow] 已从 ${name}.example 创建配置文件`)
   }
 }
 
@@ -32,7 +32,7 @@ function generateFromTemplate(targetName, templateSrc, defaults) {
   if (fs.existsSync(target)) return
   const tpl = path.join(defSetDir, templateSrc)
   if (!fs.existsSync(tpl)) {
-    logger.error(`[LinkFlow-Plugin] 模板不存在: ${tpl}`)
+    logger.error(`[LinkFlow] 模板不存在: ${tpl}`)
     return
   }
   const template = fs.readFileSync(tpl, 'utf8')
@@ -40,7 +40,7 @@ function generateFromTemplate(targetName, templateSrc, defaults) {
   const dir = path.dirname(target)
   if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true })
   fs.writeFileSync(target, content, 'utf8')
-  logger.info(`[LinkFlow-Plugin] 已从模板 ${templateSrc} 生成 ${targetName}`)
+  logger.info(`[LinkFlow] 已从模板 ${templateSrc} 生成 ${targetName}`)
 }
 
 // 从 example 复制主配置
@@ -57,7 +57,12 @@ for (const d of dirs) {
   fs.mkdirSync(path.join(dataDir, d), { recursive: true })
 }
 
-// 确保激励运行时目录存在，白名单从 .example 复制
+// 确保链接解析白名单目录存在，从 .example 复制
+  const lpWhitelistDir = path.join(configDir, 'linkparse_config')
+  fs.mkdirSync(lpWhitelistDir, { recursive: true })
+  ensureConfig(path.join('linkparse_config', 'whitelist.yaml'))
+
+  // 确保激励运行时目录存在，白名单从 .example 复制
 const whitelistDir = path.join(configDir, 'incentive_config')
 fs.mkdirSync(whitelistDir, { recursive: true })
 ensureConfig(path.join('incentive_config', 'whitelist.yaml'))
@@ -65,7 +70,7 @@ ensureConfig(path.join('incentive_config', 'whitelist.yaml'))
 const readdir = promisify(fs.readdir)
 
 logger.info('----LinkFlow-Plugin v2.0.0----')
-logger.info('[LinkFlow-Plugin] 初始化中...')
+logger.info('[LinkFlow] 初始化中...')
 
 // 动态加载 apps/ 目录（不再硬编码路径）
 const appsDir = path.join(pluginRoot, 'apps')
@@ -86,14 +91,14 @@ let apps = {}
 for (let i in files) {
   const name = files[i].replace('.js', '')
   if (ret[i].status !== 'fulfilled') {
-    logger.error(`[LinkFlow-Plugin] 载入错误：${logger.red(name)}`)
+    logger.error(`[LinkFlow] 载入错误：${logger.red(name)}`)
     logger.error(ret[i].reason)
     continue
   }
   apps[name] = ret[i].value[Object.keys(ret[i].value)[0]]
 }
 
-logger.info('[LinkFlow-Plugin] 载入成功 owo')
+logger.info('[LinkFlow] 载入成功 owo')
 logger.info('----LinkFlow-Plugin v2.0.0----')
 
 export { apps }

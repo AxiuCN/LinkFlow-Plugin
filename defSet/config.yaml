@@ -48,9 +48,8 @@ linkparse:
     timeout: ${linkparse_download_timeout}
     # 最大文件大小（MB），超过不下载
     maxSize: ${linkparse_download_maxSize}
-    # 允许下载的群号列表（留空=所有群可下载）
-    # 用 #开启解析 / #关闭解析 指令控制单个群
-    allowGroups: []
+    # 群白名单独立管理于 config/linkparse_config/whitelist.yaml
+    # 锅巴中编辑，或群内发送 #开启解析 / #关闭解析
 
 # ---------- 订阅推送 ----------
 subscribe:
@@ -62,7 +61,7 @@ subscribe:
     # 轮询 cron（秒 分 时 日 月 周），默认每23分钟
     cron: ${subscribe_dynamic_cron}
     # 动态时间窗口（秒），超过此时间的动态不推送
-    timeRange: 7200
+    timeRange: ${subscribe_dynamic_timeRange}
 
   # ===== 直播订阅 =====
   live:

@@ -26,7 +26,7 @@ class DynamicScheduler {
     const timeRange = cfg?.subscribe?.dynamic?.timeRange || 7200
     const now = Date.now() / 1000
 
-    logger?.info(`[LinkFlow-DynamicSchd] 开始轮询 ${uids.length} 个UP`)
+    logger?.info(`[LinkFlow] 开始轮询 ${uids.length} 个UP`)
 
     for (const { uid, name } of uids) {
       try {
@@ -55,11 +55,11 @@ class DynamicScheduler {
         saveDedup(dedup)
         await sleep(2000 + Math.random() * 3000)
       } catch (e) {
-        logger?.error(`[LinkFlow-DynamicSchd] poll uid=${uid} 异常:`, e)
+        logger?.error(`[LinkFlow] poll uid=${uid} 异常:`, e)
       }
     }
 
-    logger?.info('[LinkFlow-DynamicSchd] 轮询完成')
+    logger?.info('[LinkFlow] 轮询完成')
   }
 
   async _pushToGroups(item, groups, botId) {
@@ -92,7 +92,7 @@ class DynamicScheduler {
         await Bot.pickFriend(Number(chatId)).sendMsg(img)
       }
     } catch (e) {
-      logger?.error(`[LinkFlow-DynamicSchd] 发送卡片 ${chatType}/${chatId} 失败:`, e)
+      logger?.error(`[LinkFlow] 发送卡片 ${chatType}/${chatId} 失败:`, e)
     }
   }
 }

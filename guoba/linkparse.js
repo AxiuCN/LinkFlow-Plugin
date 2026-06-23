@@ -7,9 +7,13 @@
  *   linkparse_xiaohongshu_enabled, linkparse_xianyu_enabled, linkparse_toutiao_enabled,
  *   linkparse_xiaoheihe_enabled, linkparse_twitter_enabled,
  *   linkparse_download_enabled, linkparse_download_timeout, linkparse_download_maxSize
+ *
+ * 群白名单独立存储于 config/linkparse_config/whitelist.yaml
+ * 锅巴通过 GSubForm 读写该文件，不在 config.yaml 中存储 allowGroups
  */
 import path from 'node:path'
 import { pluginRoot } from '../components/constants.js'
+import { loadWhitelist, saveWhitelist } from '../modules/linkparse/Whitelist.js'
 
 const configPath = path.join(pluginRoot, 'config', 'config.yaml')
 const defaultConfigPath = path.join(pluginRoot, 'defSet', 'config.yaml')
@@ -151,8 +155,8 @@ export function getSchema() {
     {
       field: 'linkparse.download.allowGroups',
       label: '允许下载的群号',
-      helpMessage: '留空表示所有群均可下载',
-      bottomHelpMessage: '填入群号后，仅列表中群可下载视频',
+      helpMessage: '留空表示所有群均可下载（白名单 enabled=false）',
+      bottomHelpMessage: '也可通过群内 #开启解析 / #关闭解析 指令管理',
       component: 'GSubForm',
       componentProps: {
         multiple: true,

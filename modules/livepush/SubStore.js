@@ -23,7 +23,7 @@ class LiveSubStore {
         return JSON.parse(fs.readFileSync(DATA_FILE, 'utf8'))
       }
     } catch (e) {
-      logger?.error('[Bilibili-Plugin] 读取直播订阅数据失败:', e)
+      logger?.error('[LinkFlow] 读取直播订阅数据失败:', e)
     }
     return { version: CURRENT_VERSION, data: {} }
   }
@@ -38,7 +38,7 @@ class LiveSubStore {
       if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true })
       fs.writeFileSync(DATA_FILE, JSON.stringify(raw, null, '\t'), 'utf8')
     } catch (e) {
-      logger?.error('[Bilibili-Plugin] 写入直播订阅数据失败:', e)
+      logger?.error('[LinkFlow] 写入直播订阅数据失败:', e)
     }
   }
 

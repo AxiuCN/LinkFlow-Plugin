@@ -38,7 +38,7 @@ function loadAccountCookies(qq) {
     const cookies = payload?.cookies
     return validateCookies(cookies) ? cookies : null
   } catch (e) {
-    logger.error('[Bilibili-Plugin] 读取Cookie失败:', e)
+    logger.error('[LinkFlow] 读取Cookie失败:', e)
     return null
   }
 }
@@ -50,7 +50,7 @@ function loadAccountCookies(qq) {
  */
 function saveAccountCookies(qq, cookies) {
   if (!validateCookies(cookies)) {
-    throw new Error('[Bilibili-Plugin] Cookie 缺少关键字段: SESSDATA 或 bili_jct')
+    throw new Error('[LinkFlow] Cookie 缺少关键字段: SESSDATA 或 bili_jct')
   }
   fs.mkdirSync(accountsDir, { recursive: true })
   const payload = {
@@ -58,7 +58,7 @@ function saveAccountCookies(qq, cookies) {
     cookies,
   }
   fs.writeFileSync(accountPath(qq), JSON.stringify(payload, null, 2), 'utf8')
-  logger.info(`[Bilibili-Plugin] QQ ${qq} 的 Cookie 已保存`)
+  logger.info(`[LinkFlow] QQ ${qq} 的 Cookie 已保存`)
 }
 
 /**
@@ -72,7 +72,7 @@ function listBoundAccounts() {
       .filter(f => f.endsWith('.json'))
       .map(f => f.replace('.json', ''))
   } catch (e) {
-    logger.error('[Bilibili-Plugin] 列出绑定账号失败:', e)
+    logger.error('[LinkFlow] 列出绑定账号失败:', e)
     return []
   }
 }
@@ -88,7 +88,7 @@ function loadLinks() {
     const payload = JSON.parse(raw)
     return Array.isArray(payload?.links) ? payload.links : []
   } catch (e) {
-    logger.error('[Bilibili-Plugin] 读取链接列表失败:', e)
+    logger.error('[LinkFlow] 读取链接列表失败:', e)
     return []
   }
 }

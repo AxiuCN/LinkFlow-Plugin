@@ -99,7 +99,7 @@ function sleep(ms) {
 async function onCronTick(mode = 'live') {
   const config = getPluginConfig()
   if (!config?.incentive?.enabled) {
-    logger.info('[Bilibili-Plugin] 激励领取已关闭，跳过')
+    logger.info('[LinkFlow] 激励领取已关闭，跳过')
     return
   }
 
@@ -112,7 +112,7 @@ async function onCronTick(mode = 'live') {
     : (config?.incentive?.claimDeadline ?? DEFAULT_DEADLINE)
   const allQq = listUserConfigs()
   if (!allQq.length) {
-    logger.info(`[Bilibili-Plugin] 无配置用户，跳过${modeLabel}`)
+    logger.info(`[LinkFlow] 无配置用户，跳过${modeLabel}`)
     return
   }
 
@@ -121,7 +121,7 @@ async function onCronTick(mode = 'live') {
     ? { start: 10, end: MAX_SLOTS }
     : { start: 0, end: 10 }
 
-  logger.info(`[Bilibili-Plugin] 每日${modeLabel}激励领取开始 (${claimTime})，共 ${allQq.length} 个配置用户` +
+  logger.info(`[LinkFlow] 每日${modeLabel}激励领取开始 (${claimTime})，共 ${allQq.length} 个配置用户` +
     (deadline > 0 ? `，截止 ${deadline}s` : '，不限时'))
 
   // 全局取消信号
@@ -130,7 +130,7 @@ async function onCronTick(mode = 'live') {
   if (deadline > 0) {
     deadlineTimer = setTimeout(() => {
       cancelSignal.cancelled = true
-      logger.info(`[Bilibili-Plugin] 全局截止时间到（${deadline}s），取消剩余${modeLabel}任务`)
+      logger.info(`[LinkFlow] 全局截止时间到（${deadline}s），取消剩余${modeLabel}任务`)
     }, deadline * 1000)
   }
 
@@ -149,7 +149,7 @@ async function onCronTick(mode = 'live') {
 
     promises.push(
       startClaimRound(qq, cfg, cancelSignal, slotRange, mode).catch(err => {
-        logger.error(`[Bilibili-Plugin] QQ ${qq} ${modeLabel}领取异常:`, err)
+        logger.error(`[LinkFlow] QQ ${qq} ${modeLabel}领取异常:`, err)
         return null
       }),
     )
@@ -157,7 +157,7 @@ async function onCronTick(mode = 'live') {
 
   const settled = await Promise.allSettled(promises)
   clearTimeout(deadlineTimer)
-  logger.info(`[Bilibili-Plugin] 本轮${modeLabel}领取全部结束`)
+  logger.info(`[LinkFlow] 本轮${modeLabel}领取全部结束`)
 
   const userResults = settled
     .filter(r => r.status === 'fulfilled' && r.value)
@@ -279,7 +279,7 @@ async function startClaimRound(qq, cfg, cancelSignal, slotRange = { start: 0, en
         cdkey: cdkey || '',
       })
       logClaim(`已领取: code=0, cdkey=${cdkey}`, qq)
-      logger.info(`[Bilibili-Plugin] QQ ${qq} task ${taskId} 已领取: ${awardInfo.award_name} ${cdkey}`)
+      logger.info(`[LinkFlow] QQ ${qq} task ${taskId} 已领取: ${awardInfo.award_name} ${cdkey}`)
       slotsToClear.add(slotIdx)
       lastCode = '0'
     } catch (err) {
@@ -360,7 +360,7 @@ async function startClaimRound(qq, cfg, cancelSignal, slotRange = { start: 0, en
         errorMsg: msg,
       })
       logClaim(`${failStatus}: ${errMsg}`, qq)
-      logger.warn(`[Bilibili-Plugin] QQ ${qq} task ${taskId} ${failStatus}: ${errMsg}`)
+      logger.warn(`[LinkFlow] QQ ${qq} task ${taskId} ${failStatus}: ${errMsg}`)
     }
   }
 
@@ -377,7 +377,7 @@ async function startClaimRound(qq, cfg, cancelSignal, slotRange = { start: 0, en
     cfg.links = updated
     saveUserConfig(qq, cfg)
     logTask(`已自动清空 ${clearedSlots.length} 个已领取槽位: ${clearedSlots.join(',')}`, qq)
-    logger.info(`[Bilibili-Plugin] QQ ${qq} 已自动清空 ${slotsToClear.size} 个已领取槽位`)
+    logger.info(`[LinkFlow] QQ ${qq} 已自动清空 ${slotsToClear.size} 个已领取槽位`)
   }
 
   return { qq, notifyGroup, slots, clearedCount: slotsToClear.size, mode }
@@ -412,13 +412,13 @@ async function sendGroupNotifies(userResults) {
     try {
       img = await render('incentive/group', 'index', groupData, 'png')
     } catch (e) {
-      logger.error(`[Bilibili-Plugin] 渲染群 ${gid} 通知 HTML 失败:`, e)
+      logger.error(`[LinkFlow] 渲染群 ${gid} 通知 HTML 失败:`, e)
       // 降级：发送文本摘要
       const textFallback = buildGroupTextFallback(gid, members)
       try {
         await Bot.pickGroup(Number(gid)).sendMsg(textFallback)
       } catch (e2) {
-        logger.error(`[Bilibili-Plugin] 发送群 ${gid} 文本通知失败:`, e2)
+        logger.error(`[LinkFlow] 发送群 ${gid} 文本通知失败:`, e2)
       }
       continue
     }
@@ -426,7 +426,7 @@ async function sendGroupNotifies(userResults) {
     try {
       await Bot.pickGroup(Number(gid)).sendMsg(img)
     } catch (e) {
-      logger.error(`[Bilibili-Plugin] 发送群 ${gid} 通知图片失败:`, e)
+      logger.error(`[LinkFlow] 发送群 ${gid} 通知图片失败:`, e)
     }
   }
 
@@ -542,12 +542,12 @@ async function sendPersonalNotifies(userResults) {
     try {
       img = await render('incentive/user', 'index', userData, 'png')
     } catch (e) {
-      logger.error(`[Bilibili-Plugin] 渲染用户 ${ur.qq} 通知 HTML 失败:`, e)
+      logger.error(`[LinkFlow] 渲染用户 ${ur.qq} 通知 HTML 失败:`, e)
       const textFallback = buildPersonalTextFallback(ur)
       try {
         await Bot.pickUser(Number(ur.qq)).sendMsg(textFallback)
       } catch (e2) {
-        logger.debug(`[Bilibili-Plugin] 发送用户 ${ur.qq} 文本通知失败:`, e2)
+        logger.debug(`[LinkFlow] 发送用户 ${ur.qq} 文本通知失败:`, e2)
       }
       continue
     }
@@ -555,7 +555,7 @@ async function sendPersonalNotifies(userResults) {
     try {
       await Bot.pickUser(Number(ur.qq)).sendMsg(img)
     } catch (e) {
-      logger.debug(`[Bilibili-Plugin] 发送用户 ${ur.qq} 通知图片失败（可能不是好友）:`, e)
+      logger.debug(`[LinkFlow] 发送用户 ${ur.qq} 通知图片失败（可能不是好友）:`, e)
     }
   }
 }
@@ -677,24 +677,24 @@ function extractTaskId(url) {
 async function onFallbackTick() {
   const config = getPluginConfig()
   if (!config?.incentive?.enabled) {
-    logger.info('[Bilibili-Plugin] 激励领取已关闭，跳过兜底')
+    logger.info('[LinkFlow] 激励领取已关闭，跳过兜底')
     return
   }
 
   const links = (config?.incentive?.dailyTaskLinks || []).filter(Boolean)
   if (!links.length) {
-    logger.info('[Bilibili-Plugin] 无每日兜底任务链接，跳过')
+    logger.info('[LinkFlow] 无每日兜底任务链接，跳过')
     return
   }
 
   const fallbackTime = config?.incentive?.fallbackTime || '23:55'
   const allQq = listUserConfigs()
   if (!allQq.length) {
-    logger.info('[Bilibili-Plugin] 无配置用户，跳过兜底')
+    logger.info('[LinkFlow] 无配置用户，跳过兜底')
     return
   }
 
-  logger.info(`[Bilibili-Plugin] 每日兜底任务开始 (${fallbackTime})，共 ${allQq.length} 个用户，${links.length} 个链接`)
+  logger.info(`[LinkFlow] 每日兜底任务开始 (${fallbackTime})，共 ${allQq.length} 个用户，${links.length} 个链接`)
 
   const promises = []
   for (const qq of allQq) {
@@ -707,7 +707,7 @@ async function onFallbackTick() {
     logTask(`[兜底] 开始执行，共 ${links.length} 个链接`, qq)
     promises.push(
       processUserFallback(qq, links).catch(err => {
-        logger.error(`[Bilibili-Plugin] QQ ${qq} 兜底异常:`, err)
+        logger.error(`[LinkFlow] QQ ${qq} 兜底异常:`, err)
         return null
       }),
     )
@@ -718,7 +718,7 @@ async function onFallbackTick() {
     .filter(r => r.status === 'fulfilled' && r.value)
     .map(r => r.value)
 
-  logger.info(`[Bilibili-Plugin] 每日兜底任务结束，共 ${userResults.length} 个用户完成`)
+  logger.info(`[LinkFlow] 每日兜底任务结束，共 ${userResults.length} 个用户完成`)
 
   if (!userResults.length) return
 

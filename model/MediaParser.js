@@ -104,7 +104,7 @@ async function extractMetadata(url, opts = {}) {
     const info = JSON.parse(stdout)
     return normalizeMetadata(info)
   } catch (e) {
-    logger?.error('[LinkFlow-MediaParser] extractMetadata 失败:', e.message)
+    logger?.error('[LinkFlow] extractMetadata 失败:', e.message)
     return null
   }
 }
@@ -175,7 +175,7 @@ async function downloadMedia(url, opts = {}) {
       metadata: { title, uploader, sizeMb: sizeMb.toFixed(1) },
     }
   } catch (e) {
-    logger?.error('[LinkFlow-MediaParser] downloadMedia 失败:', e.message)
+    logger?.error('[LinkFlow] downloadMedia 失败:', e.message)
     return null
   }
 }

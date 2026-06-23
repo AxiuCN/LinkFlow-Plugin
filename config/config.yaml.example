@@ -48,8 +48,8 @@ linkparse:
     timeout: 600
     # 最大文件大小（MB），超过不下载
     maxSize: 100
-    # 允许下载的群号列表（留空=所有群可下载）
-    allowGroups: []
+    # 群白名单独立管理于 config/linkparse_config/whitelist.yaml
+    # 锅巴中编辑，或群内发送 #开启解析 / #关闭解析
 
 # ---------- 订阅推送 ----------
 subscribe:

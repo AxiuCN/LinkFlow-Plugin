@@ -51,7 +51,7 @@ function writeLog(context, message, qq = '') {
     const line = `${timestamp()} ${qqTag}[${context}] ${message}\n`
     fs.appendFileSync(file, line, 'utf8')
   } catch (e) {
-    logger.error(`[Bilibili-Plugin] 写入日志失败:`, e)
+    logger.error(`[LinkFlow] 写入日志失败:`, e)
   }
 }
 

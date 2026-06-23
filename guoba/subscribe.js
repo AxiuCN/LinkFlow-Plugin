@@ -21,6 +21,7 @@ const defaults = {
   subscribe_push_forward: 'false',
   subscribe_push_rePush: 'false',
   subscribe_push_sleep: '0',
+  subscribe_dynamic_timeRange: '7200',
 }
 
 export function getSchema() {
@@ -44,6 +45,15 @@ export function getSchema() {
       component: 'EasyCron',
       required: true,
       componentProps: { showSecond: true, defaultValue: '0 */23 * * * ?' },
+    },
+    {
+      field: 'subscribe.dynamic.timeRange',
+      label: '动态时间窗口（秒）',
+      helpMessage: '超过此时间的动态不推送',
+      bottomHelpMessage: '默认 7200 秒（2小时），设为 86400 则推送全天动态',
+      component: 'InputNumber',
+      required: true,
+      componentProps: { min: 60, max: 86400, defaultValue: 7200 },
     },
 
     // ==================== 直播订阅 ====================

@@ -34,7 +34,7 @@ async function fetchDynamicFeed(uid, opts = {}) {
     const res = await fetch(`${DYNAMIC_SPACE_URL}?${query}`, { headers })
     const payload = await res.json()
     if (payload?.code !== 0) {
-      logger?.warn(`[LinkFlow-Dynamic] fetchDynamicFeed uid=${uid} code=${payload?.code}`)
+      logger?.warn(`[LinkFlow] fetchDynamicFeed uid=${uid} code=${payload?.code}`)
       return null
     }
     const data = payload.data || {}
@@ -45,7 +45,7 @@ async function fetchDynamicFeed(uid, opts = {}) {
       offset: data.offset || '',
     }
   } catch (e) {
-    logger?.error('[LinkFlow-Dynamic] fetchDynamicFeed 异常:', e)
+    logger?.error('[LinkFlow] fetchDynamicFeed 异常:', e)
     return null
   }
 }

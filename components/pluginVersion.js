@@ -10,7 +10,7 @@ try {
     pluginVersion = JSON.parse(fs.readFileSync(pkgPath, 'utf8')).version || '1.0.0'
   }
 } catch (e) {
-  logger.error('[Bilibili-Plugin] 读取版本号失败:', e)
+  logger.error('[LinkFlow] 读取版本号失败:', e)
 }
 
 /** Yunzai 版本 */
