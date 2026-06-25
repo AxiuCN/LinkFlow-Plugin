@@ -59,7 +59,17 @@ const TOOL_GITHUB_API_BASES = [
   'https://api.github.com',
   'https://ghproxy.cn/https://api.github.com',
 ]
-const TOOL_DOWNLOAD_TIMEOUT_MS = 300000
+/** GitHub API 请求超时（毫秒） */
+const TOOL_API_TIMEOUT_MS = 30000
+/** 工具压缩包下载超时（毫秒），大文件 + 慢网络需较长时间 */
+const TOOL_DOWNLOAD_TIMEOUT_MS = 900000
+/** 解压超时（毫秒） */
+const TOOL_EXTRACT_TIMEOUT_MS = 300000
+/** 下载镜像前缀（ghproxy 风格，拼接在原始 URL 前面） */
+const TOOL_DOWNLOAD_MIRRORS = [
+  'https://ghproxy.cn/',
+  'https://ghproxy.net/',
+]
 const TOOL_FFMPEG_MIRROR_URL = 'https://www.gyan.dev/ffmpeg/builds/ffmpeg-release-essentials_build.zip'
 
 /** B站 API */
@@ -116,7 +126,10 @@ export {
   MEDIA_PARSER_RESTART_LIMIT,
   MEDIA_PARSER_RESTART_WINDOW_MS,
   TOOL_GITHUB_API_BASES,
+  TOOL_API_TIMEOUT_MS,
   TOOL_DOWNLOAD_TIMEOUT_MS,
+  TOOL_EXTRACT_TIMEOUT_MS,
+  TOOL_DOWNLOAD_MIRRORS,
   TOOL_FFMPEG_MIRROR_URL,
   NAV_URL,
   MISSION_INFO_URL,

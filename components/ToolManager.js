@@ -12,7 +12,10 @@ import {
   TOOL_REPOS,
   TOOL_ASSET_PATTERNS,
   TOOL_GITHUB_API_BASES,
+  TOOL_API_TIMEOUT_MS,
   TOOL_DOWNLOAD_TIMEOUT_MS,
+  TOOL_EXTRACT_TIMEOUT_MS,
+  TOOL_DOWNLOAD_MIRRORS,
   TOOL_FFMPEG_MIRROR_URL,
 } from './constants.js'
 import { runSpawn, exists, ensureDir } from './utils.js'
@@ -239,9 +242,9 @@ class ToolManager {
     const archivePath = path.join(destDir, asset.name)
 
     const urls = [asset.browser_download_url]
-    // 添加 ghproxy 镜像
-    for (const base of TOOL_GITHUB_API_BASES.slice(1)) {
-      urls.push(asset.browser_download_url.replace('https://github.com', base.replace('/https://api.github.com', '')))
+    // 添加 ghproxy 镜像前缀（ghproxy.cn/<原URL> 风格）
+    for (const mirror of TOOL_DOWNLOAD_MIRRORS) {
+      urls.push(mirror + asset.browser_download_url)
     }
 
     await this._tryDownloadUrls(urls, archivePath, name)
@@ -460,7 +463,7 @@ class ToolManager {
         const { default: fetch } = await import('node-fetch')
         const res = await fetch(url, {
           headers: { 'User-Agent': 'LinkFlow-Plugin', Accept: 'application/json' },
-          timeout: 15000,
+          timeout: TOOL_API_TIMEOUT_MS,
         })
         if (res.ok) return await res.json()
       } catch {}
@@ -512,16 +515,16 @@ class ToolManager {
     if (ext.endsWith('.zip')) {
       if (process.platform === 'win32') {
         execSync(`powershell -Command "Expand-Archive -Path '${archivePath}' -DestinationPath '${destDir}' -Force"`, {
-          timeout: TOOL_DOWNLOAD_TIMEOUT_MS,
+          timeout: TOOL_EXTRACT_TIMEOUT_MS,
           windowsHide: true,
         })
       } else {
-        execSync(`unzip -o -q '${archivePath}' -d '${destDir}'`, { timeout: TOOL_DOWNLOAD_TIMEOUT_MS })
+        execSync(`unzip -o -q '${archivePath}' -d '${destDir}'`, { timeout: TOOL_EXTRACT_TIMEOUT_MS })
       }
     } else if (ext.endsWith('.tar.gz') || ext.endsWith('.tgz')) {
-      execSync(`tar -xzf '${archivePath}' -C '${destDir}'`, { timeout: TOOL_DOWNLOAD_TIMEOUT_MS })
+      execSync(`tar -xzf '${archivePath}' -C '${destDir}'`, { timeout: TOOL_EXTRACT_TIMEOUT_MS })
     } else if (ext.endsWith('.tar.xz')) {
-      execSync(`tar -xJf '${archivePath}' -C '${destDir}'`, { timeout: TOOL_DOWNLOAD_TIMEOUT_MS })
+      execSync(`tar -xJf '${archivePath}' -C '${destDir}'`, { timeout: TOOL_EXTRACT_TIMEOUT_MS })
     } else {
       throw new Error(`不支持的归档格式: ${path.extname(archivePath)}`)
     }
