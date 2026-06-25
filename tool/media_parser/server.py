@@ -202,7 +202,16 @@ async def handle_parse(request):
         # 序列化：将 MediaMetadata 对象转为可 JSON 化的 dict
         results = []
         for meta in metadata_list:
-            results.append(_serialize_metadata(meta))
+            serialized = _serialize_metadata(meta)
+            vurls = serialized.get("video_urls", [])
+            iurls = serialized.get("image_urls", [])
+            _logger.info(
+                f"parse 序列化: url={serialized.get('url','')[:80]}, "
+                f"title={serialized.get('title','')[:30]}, "
+                f"video_urls={len(vurls)}组({[len(g) for g in vurls]}), "
+                f"image_urls={len(iurls)}组({[len(g) for g in iurls]})"
+            )
+            results.append(serialized)
 
         return web.json_response(results)
     except Exception as e:
@@ -230,6 +239,16 @@ async def handle_download(request):
 
     if not metadata:
         return web.json_response({"error": "metadata is required"}, status=400)
+
+    vurls = metadata.get("video_urls", [])
+    iurls = metadata.get("image_urls", [])
+    _logger.info(
+        f"download 收到metadata: url={metadata.get('url','')[:80]}, "
+        f"title={metadata.get('title','')[:30]}, "
+        f"video_urls={len(vurls)}组({[len(g) for g in vurls]}), "
+        f"image_urls={len(iurls)}组({[len(g) for g in iurls]}), "
+        f"max_size_mb={max_size_mb}"
+    )
 
     # 如果指定了 max_size_mb，临时修改下载管理器设置
     original_max = _download_manager.max_video_size_mb

@@ -34,6 +34,13 @@ async function handleMessage(e, text) {
       const meta = await resolveUrl(url, platform.key)
       if (!meta) continue
 
+      // 诊断：记录解析结果的关键下载字段
+      const vurls = meta.video_urls || []
+      const iurls = meta.image_urls || []
+      logger?.info(`[LinkFlow] 解析结果: title="${meta.title}", platform=${platform.key}, ` +
+        `video_urls=${vurls.length}组(${vurls.map(g => (g||[]).length).join(',')}), ` +
+        `image_urls=${iurls.length}组(${iurls.map(g => (g||[]).length).join(',')})`)
+
       // 2. 展示信息卡
       await showInfoCard(e, meta, platform)
 
@@ -175,6 +182,10 @@ async function sendResult(e, result, maxSizeMb) {
       logger?.info(`[LinkFlow] 下载完成: ${localCount} 个本地文件`)
     } else if (directCount > 0) {
       e.reply(`[LinkFlow] ${result.title || '视频'} 已解析，直接链接已就绪`)
+    } else {
+      // 兜底：既无文件也无 direct 链接——media_parser 下载无产出
+      logger?.warn(`[LinkFlow] 下载无产出: title="${result.title || '未知'}", file_paths=0, video_modes=[${videoModes.join(',')}]`)
+      e.reply(`[LinkFlow] ${result.title || '视频'} 下载失败，media_parser 未返回文件`)
     }
   }
 }
