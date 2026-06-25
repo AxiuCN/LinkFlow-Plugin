@@ -111,6 +111,9 @@ export function supportGuoba() {
       isV3: true,
       isV2: false,
       showInMenu: 'auto',
+      icon: 'mdi:link-box-variant',
+      iconColor: '#42b883',
+      iconPath: path.join(pluginRoot, 'resources', 'images', 'icon.ico'),
     },
     configInfo: {
       schemas: [
@@ -210,8 +213,7 @@ export function supportGuoba() {
           'linkparse.download.maxSize': dl.maxSize ?? 100,
           // 群白名单
           'linkparse.whitelist.enabled': whitelist.enabled ?? false,
-          // GSubForm
-          'linkparse.download.allowGroups': (whitelist.groups || []).map(g => ({ groupId: String(g) })),
+          'linkparse.download.allowGroups': (whitelist.groups || []).map(g => typeof g === 'string' ? Number(g) : g),
 
           // 订阅
           'subscribe.dynamic.enabled': sdyn.enabled ?? true,
@@ -252,9 +254,10 @@ export function supportGuoba() {
           // 1. 扁平化锅巴数据（兼容嵌套和扁平两种格式）
           const flatData = flattenForTemplate(data)
 
-          // 2. 合并默认值 + 用户值
+          // 2. 合并默认值 + 用户值（key 统一 dot→underscore 以匹配模板变量 ${xxx_yyy}）
           const values = { ...allDefaults }
-          for (const [key, val] of Object.entries(flatData)) {
+          for (let [key, val] of Object.entries(flatData)) {
+            key = key.replace(/\./g, '_')
             // 跳过 GSubForm 数组字段（单独处理）
             if (key === 'incentive_users' || key.startsWith('incentive_users_')) continue
             if (key === 'linkparse_download_allowGroups' || key.startsWith('linkparse_download_allowGroups_')) continue
@@ -278,20 +281,23 @@ export function supportGuoba() {
           // 5. 保存群白名单到独立文件（兼容嵌套/flat）
           const whitelistEnabled = getNested(data, 'linkparse.whitelist.enabled')
           if (whitelistEnabled !== undefined) {
-            const wlEnabled = loadWhitelist()
-            wlEnabled.enabled = whitelistEnabled
-            saveWhitelist(wlEnabled)
-          }
-          const allowGroups = getNested(data, 'linkparse.download.allowGroups') || []
-          if (allowGroups.length > 0 && typeof allowGroups[0] === 'object') {
-            const groupIds = allowGroups.map(g => g.groupId || g.id || '').filter(Boolean)
             const wl = loadWhitelist()
-            wl.groups = groupIds
+            wl.enabled = whitelistEnabled
             saveWhitelist(wl)
-          } else {
-            // 空数组 → 清空白名单
+          }
+          const allowGroups = getNested(data, 'linkparse.download.allowGroups')
+          if (allowGroups !== undefined) {
             const wl = loadWhitelist()
-            wl.groups = []
+            if (Array.isArray(allowGroups) && allowGroups.length > 0) {
+              // GSelectGroup → number[]；兼容旧 GSubForm [{ groupId }] 格式
+              if (typeof allowGroups[0] === 'object') {
+                wl.groups = allowGroups.map(g => g.groupId || g.id || '').filter(Boolean).map(String)
+              } else {
+                wl.groups = allowGroups.filter(Boolean).map(String)
+              }
+            } else {
+              wl.groups = []
+            }
             saveWhitelist(wl)
           }
 

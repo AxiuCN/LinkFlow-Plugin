@@ -71,12 +71,9 @@ export function getSchema() {
       required: true,
       componentProps: { min: 0, max: 300, defaultValue: 40 },
     },
-
-    // ---- 直播领取设置 ----
-    { component: 'Divider', label: '直播领取设置', componentProps: { orientation: 'left', plain: true } },
     {
       field: 'incentive.claim.threadCount',
-      label: '并发线程数',
+      label: '直播并发线程数',
       helpMessage: '同时发送请求的 worker 数量',
       bottomHelpMessage: '建议 2-5，过高可能触发风控',
       component: 'InputNumber',
@@ -85,7 +82,7 @@ export function getSchema() {
     },
     {
       field: 'incentive.claim.maxRetry',
-      label: '单线程重试次数',
+      label: '直播重试次数',
       helpMessage: '单个 worker 最大重试次数',
       bottomHelpMessage: '默认 30',
       component: 'InputNumber',
@@ -94,14 +91,16 @@ export function getSchema() {
     },
     {
       field: 'incentive.claim.retryInterval',
-      label: '重试间隔（秒）',
+      label: '直播重试间隔（秒）',
+      bottomHelpMessage: '请求失败后等待此时间再重试，默认 1.0 秒',
       component: 'InputNumber',
       required: true,
       componentProps: { min: 0.1, max: 10, step: 0.1, precision: 1, defaultValue: 1.0 },
     },
     {
       field: 'incentive.claim.timeout',
-      label: '请求超时（秒）',
+      label: '直播请求超时（秒）',
+      bottomHelpMessage: '单次领取请求的网络超时，默认 10 秒',
       component: 'InputNumber',
       required: true,
       componentProps: { min: 3, max: 60, defaultValue: 10 },
@@ -127,12 +126,9 @@ export function getSchema() {
       required: true,
       componentProps: { min: 0, max: 300, defaultValue: 12 },
     },
-
-    // ---- 看播领取设置 ----
-    { component: 'Divider', label: '看播领取设置', componentProps: { orientation: 'left', plain: true } },
     {
       field: 'incentive.watch.threadCount',
-      label: '并发线程数',
+      label: '看播并发线程数',
       helpMessage: '同时发送请求的 worker 数量',
       bottomHelpMessage: '看播默认为 1，过高可能触发风控',
       component: 'InputNumber',
@@ -141,7 +137,7 @@ export function getSchema() {
     },
     {
       field: 'incentive.watch.maxRetry',
-      label: '单线程重试次数',
+      label: '看播重试次数',
       helpMessage: '单个 worker 最大重试次数',
       bottomHelpMessage: '默认 30',
       component: 'InputNumber',
@@ -150,14 +146,16 @@ export function getSchema() {
     },
     {
       field: 'incentive.watch.retryInterval',
-      label: '重试间隔（秒）',
+      label: '看播重试间隔（秒）',
+      bottomHelpMessage: '请求失败后等待此时间再重试，默认 1.0 秒',
       component: 'InputNumber',
       required: true,
       componentProps: { min: 0.1, max: 10, step: 0.1, precision: 1, defaultValue: 1.0 },
     },
     {
       field: 'incentive.watch.timeout',
-      label: '请求超时（秒）',
+      label: '看播请求超时（秒）',
+      bottomHelpMessage: '单次领取请求的网络超时，默认 10 秒',
       component: 'InputNumber',
       required: true,
       componentProps: { min: 3, max: 60, defaultValue: 10 },
@@ -184,18 +182,21 @@ export function getSchema() {
     {
       field: 'incentive.dailyTaskLink2',
       label: '每日任务链接 2',
+      helpMessage: '全局每日激励任务链接（含 task_id）',
       component: 'Input',
       componentProps: { placeholder: '活动链接' },
     },
     {
       field: 'incentive.dailyTaskLink3',
       label: '每日任务链接 3',
+      helpMessage: '全局每日激励任务链接（含 task_id）',
       component: 'Input',
       componentProps: { placeholder: '活动链接' },
     },
     {
       field: 'incentive.dailyTaskLink4',
       label: '每日任务链接 4',
+      helpMessage: '全局每日激励任务链接（含 task_id）',
       component: 'Input',
       componentProps: { placeholder: '活动链接' },
     },

@@ -22,8 +22,8 @@ export function getSchema() {
     {
       field: 'global.enabled',
       label: '总开关',
-      helpMessage: '关闭后除 #机器人b站登录 / #B站登录 / #B站状态 外所有功能停用',
-      bottomHelpMessage: '不影响激励模块的 cron 任务',
+      helpMessage: '关闭后除登录/工具指令外所有功能停用',
+      bottomHelpMessage: '仍可用的指令：#机器人b站登录 / #B站登录 / #B站状态 / #初始化工具环境',
       component: 'Switch',
       required: true,
       componentProps: { defaultValue: true },

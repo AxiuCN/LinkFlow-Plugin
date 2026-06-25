@@ -72,7 +72,8 @@ export function getSchema() {
     {
       field: 'tool.ffmpeg.enabled',
       label: '启用 ffmpeg',
-      helpMessage: 'DASH/M3U8 流合并需要 ffmpeg',
+      helpMessage: 'DASH 音视频分离流和 M3U8 分片流的合并',
+      bottomHelpMessage: 'media_parser 下载 DASH/M3U8 视频时必需，关闭后仅能下载普通 mp4 流',
       component: 'Switch',
       required: true,
       componentProps: { defaultValue: true },
@@ -83,7 +84,8 @@ export function getSchema() {
     {
       field: 'tool.aria2.enabled',
       label: '启用 aria2',
-      helpMessage: 'BBDown 可调用 aria2 加速下载',
+      helpMessage: '多线程下载加速器，BBDown 可选调用',
+      bottomHelpMessage: '启用后 BBDown 下载大文件时可显著提速，需同时开启上方 BBDown 的 useAria2',
       component: 'Switch',
       required: true,
       componentProps: { defaultValue: true },

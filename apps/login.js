@@ -6,7 +6,20 @@ import { toolManager } from '../components/ToolManager.js'
 import { getPluginConfig } from '../components/config.js'
 import { render } from '../components/render.js'
 import { pluginVersion, yunzaiVersion } from '../components/pluginVersion.js'
-import { NAV_URL, DEFAULT_USER_AGENT, bbdownPath } from '../components/constants.js'
+import { NAV_URL, DEFAULT_USER_AGENT, bbdownPath, LOGIN_POLL_TIMEOUT_SECONDS } from '../components/constants.js'
+
+/**
+ * 从配置读取扫码登录超时（秒）
+ * @returns {number}
+ */
+function getPollTimeoutSeconds() {
+  try {
+    const cfg = getPluginConfig()
+    const val = cfg?.login?.pollTimeout
+    if (typeof val === 'number' && val > 0) return val
+  } catch {}
+  return LOGIN_POLL_TIMEOUT_SECONDS
+}
 
 /** 冷却控制：每个 QQ 1分钟内只能发起一次登录 */
 const cooldowns = new Map()
@@ -51,8 +64,10 @@ export class LinkFlowLogin extends plugin {
     }
 
     try {
+      const loginTimeout = getPollTimeoutSeconds()
       // 使用 BBDown 扫码登录
       const success = await bbdownLogin(e, {
+        timeout: loginTimeout * 1000,  // 秒 → 毫秒
         onQR: async (qrPath) => {
           // BBDown 生成 qrcode.png，直接发送图片
           await this.reply([
@@ -85,7 +100,9 @@ export class LinkFlowLogin extends plugin {
     cooldowns.set(e.user_id, Date.now())
 
     try {
+      const loginTimeout = getPollTimeoutSeconds()
       const cookies = await startLogin({
+        timeout: loginTimeout,
         onQR: async (url) => {
           const img = await render('qrCode', 'index', {
             url,

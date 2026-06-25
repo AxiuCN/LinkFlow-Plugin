@@ -9,7 +9,7 @@
  *   linkparse_download_enabled, linkparse_download_timeout, linkparse_download_maxSize
  *
  * 群白名单独立存储于 config/linkparse_config/whitelist.yaml
- * 锅巴通过 switch + GSubForm 读写该文件，不在 config.yaml 中存储
+ * 锅巴通过 switch + GSelectGroup 读写该文件，不在 config.yaml 中存储
  */
 import path from 'node:path'
 import { pluginRoot } from '../components/constants.js'
@@ -32,6 +32,18 @@ const defaults = {
   linkparse_download_enabled: 'true',
   linkparse_download_timeout: '600',
   linkparse_download_maxSize: '100',
+}
+
+/** 从 Bot 缓存构建群列表（供 GSelectGroup 下拉选择） */
+function buildGroupOptions() {
+  try {
+    if (typeof Bot !== 'undefined' && Bot?.gl) {
+      return Array.from(Bot.gl.values())
+        .map(g => ({ label: `${g.group_name} (${g.group_id})`, value: g.group_id }))
+        .sort((a, b) => a.label.localeCompare(b.label, 'zh-CN'))
+    }
+  } catch {}
+  return []
 }
 
 export function getSchema() {
@@ -154,7 +166,7 @@ export function getSchema() {
     {
       field: 'linkparse.whitelist.enabled',
       label: '启用群白名单',
-      helpMessage: '关闭=所有群可解析下载；开启=仅下方列表中的群可解析下载',
+      helpMessage: '关闭=所有群可解析下载；开启=仅下方选中的群可解析下载',
       bottomHelpMessage: '关闭时 #开启解析 仍可将群加入列表，待启用后生效',
       component: 'Switch',
       required: true,
@@ -162,21 +174,16 @@ export function getSchema() {
     },
     {
       field: 'linkparse.download.allowGroups',
-      label: '允许的群号列表',
-      helpMessage: '仅白名单启用时生效',
-      bottomHelpMessage: '也可通过群内 #开启解析 / #关闭解析 指令管理',
-      component: 'GSubForm',
+      label: '允许的群',
+      helpMessage: '仅白名单启用时生效，可多选',
+      bottomHelpMessage: '也可通过群内发送 #开启解析 / #关闭解析 指令管理',
+      component: 'GSelectGroup',
+      required: false,
       componentProps: {
-        multiple: true,
-        schemas: [
-          {
-            field: 'groupId',
-            label: '群号',
-            component: 'Input',
-            required: true,
-            componentProps: { placeholder: 'QQ群号' },
-          },
-        ],
+        mode: 'multiple',
+        allowAdd: true,
+        allowDel: true,
+        options: buildGroupOptions(),
       },
     },
   ]
