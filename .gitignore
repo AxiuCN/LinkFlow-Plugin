@@ -4,10 +4,15 @@ data/
 # 运行日志
 logs/
 
-# 工具目录
+# 工具目录（二进制 / 运行时产物，submodule + 源码仍纳入 git）
 tool/bbdown/
 tool/ffmpeg/
 tool/aria2/
+tool/media_parser/venv/
+tool/media_parser/cache/
+tool/media_parser/*.log
+tool/media_parser/.fingerprint
+tool/media_parser/.bili_cookies.txt
 
 # 用户本地配置（仅 .example 可上传）
 config/*.yaml

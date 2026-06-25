@@ -13,6 +13,35 @@ login:
   # 扫码登录轮询超时（秒）
   pollTimeout: ${login_pollTimeout}
 
+# ---------- 外部工具 ----------
+tool:
+  # 自动安装缺失的工具
+  autoInstall: ${tool_autoInstall}
+
+  # ===== BBDown（B站下载）=====
+  bbdown:
+    enabled: ${tool_bbdown_enabled}
+    # 是否使用 aria2 加速下载
+    useAria2: ${tool_bbdown_useAria2}
+    # 画质优先级，留空由BBDown自动选择
+    resolution: ${tool_bbdown_resolution}
+
+  # ===== ffmpeg（音视频合并）=====
+  ffmpeg:
+    enabled: ${tool_ffmpeg_enabled}
+
+  # ===== aria2（多线程加速）=====
+  aria2:
+    enabled: ${tool_aria2_enabled}
+
+  # ===== media_parser（非B站解析下载）=====
+  mediaParser:
+    enabled: ${tool_mediaParser_enabled}
+    # Python 可执行文件路径
+    pythonPath: ${tool_mediaParser_pythonPath}
+    # HTTP 服务端口
+    port: ${tool_mediaParser_port}
+
 # ---------- 链接解析（apps/linkparse.js）----------
 linkparse:
   # 解析总开关

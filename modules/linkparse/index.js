@@ -1,10 +1,11 @@
 import { extractPlatformUrls } from './platforms.js'
 import { resolveUrl } from './resolvers.js'
-import { downloadMedia, createBiliCookieFile } from '../../model/MediaParser.js'
+import { mediaParser } from '../../model/MediaParser.js'
+import { download as bbdownDownload } from '../../model/BBDown.js'
 import { getPluginConfig } from '../../components/config.js'
 import { render } from '../../components/render.js'
 import { pluginVersion, yunzaiVersion } from '../../components/pluginVersion.js'
-import { YTDLP_DEFAULT_TIMEOUT_MS, YTDLP_DEFAULT_MAX_SIZE_MB } from '../../components/constants.js'
+import { DOWNLOAD_DEFAULT_TIMEOUT_MS, DOWNLOAD_DEFAULT_MAX_SIZE_MB } from '../../components/constants.js'
 import { isGroupAllowed } from './Whitelist.js'
 
 /**
@@ -66,6 +67,9 @@ async function showInfoCard(e, meta, platform) {
 
 /**
  * 尝试下载视频
+ * 下载策略:
+ *   B站:  BBDown（独立方案）→ media_parser（降级）
+ *   其他:    media_parser（统一方案）
  */
 async function tryDownload(e, url, platformKey, meta) {
   const config = getPluginConfig()
@@ -77,37 +81,87 @@ async function tryDownload(e, url, platformKey, meta) {
   // 群白名单检查
   if (e.isGroup && !isGroupAllowed(e.group_id)) return
 
-  // 大小预估检查
-  const maxSizeMb = dlCfg.maxSize || YTDLP_DEFAULT_MAX_SIZE_MB
-  const timeout = dlCfg.timeout ? dlCfg.timeout * 1000 : YTDLP_DEFAULT_TIMEOUT_MS
+  const maxSizeMb = dlCfg.maxSize || DOWNLOAD_DEFAULT_MAX_SIZE_MB
+  const timeout = dlCfg.timeout ? dlCfg.timeout * 1000 : DOWNLOAD_DEFAULT_TIMEOUT_MS
 
   try {
-    let cookieFile = null
+    let result = null
+
     if (platformKey === 'bilibili') {
-      cookieFile = await createBiliCookieFile()
+      // B站: BBDown 独立方案优先
+      logger?.info('[LinkFlow] B站下载: 尝试 BBDown ...')
+      result = await bbdownDownload(url, {
+        timeout,
+        maxSizeMb,
+        useAria2: config?.tool?.bbdown?.useAria2 || false,
+        resolution: config?.tool?.bbdown?.resolution || undefined,
+      })
+
+      if (!result) {
+        // BBDown 失败，降级 media_parser
+        logger?.info('[LinkFlow] B站下载: BBDown 失败，降级 media_parser ...')
+        result = await mediaParser.download(meta, { maxSizeMb })
+      }
+    } else {
+      // 其他平台: 直接走 media_parser
+      result = await mediaParser.download(meta, { maxSizeMb })
     }
 
-    const result = await downloadMedia(url, {
-      timeout,
-      maxSizeMb,
-      cookiesFile: cookieFile || undefined,
-    })
-
     if (result) {
-      // 发送文件
-      const sizeMb = parseFloat(result.metadata?.sizeMb || '0')
-      const fileMsg = segment.file(result.filePath)
-
-      if (sizeMb < 30) {
-        // 小于 30MB 直接发送
-        e.reply(fileMsg)
-      } else {
-        // 大于 30MB 发送文件路径提示
-        e.reply(`[LinkFlow] ${result.metadata?.title || '视频'} (${sizeMb}MB) 已下载`)
-      }
+      await sendResult(e, result, maxSizeMb)
     }
   } catch (err) {
     logger?.error('[LinkFlow] 下载失败:', err.message)
+  }
+}
+
+/**
+ * 发送下载结果（文件或提示）
+ * @param {object} e - Yunzai 消息事件
+ * @param {object} result - 下载结果
+ * @param {number} maxSizeMb - 大小限制
+ */
+async function sendResult(e, result, maxSizeMb) {
+  // media_parser 返回的 file_paths 列表
+  const filePaths = result.file_paths || result.filePaths || []
+
+  for (const fp of filePaths) {
+    if (!fp) continue
+    try {
+      const { default: fs } = await import('node:fs')
+      if (!fs.existsSync(fp)) continue
+
+      const stat = fs.statSync(fp)
+      const sizeMb = stat.size / (1024 * 1024)
+
+      if (sizeMb > maxSizeMb) {
+        e.reply(`[LinkFlow] ${result.title || '视频'} (${sizeMb.toFixed(1)}MB) 超过上限 ${maxSizeMb}MB，已跳过`)
+        continue
+      }
+
+      const fileMsg = segment.file(fp)
+      if (sizeMb < 30) {
+        e.reply(fileMsg)
+      } else {
+        e.reply(`[LinkFlow] ${result.title || '视频'} (${sizeMb.toFixed(1)}MB) 已下载: ${fp}`)
+      }
+    } catch (err) {
+      logger?.error(`[LinkFlow] 发送文件失败: ${err.message}`)
+    }
+  }
+
+  // 没有 file_paths 但有下载成功的条目，给个提示
+  if (!filePaths.length) {
+    // 检查是否有 video_modes = 'direct'
+    const videoModes = result.video_modes || result.videoModes || []
+    const directCount = videoModes.filter(m => m === 'direct').length
+    const localCount = videoModes.filter(m => m === 'local').length
+
+    if (localCount > 0) {
+      logger?.info(`[LinkFlow] 下载完成: ${localCount} 个本地文件`)
+    } else if (directCount > 0) {
+      e.reply(`[LinkFlow] ${result.title || '视频'} 已解析，直接链接已就绪`)
+    }
   }
 }
 

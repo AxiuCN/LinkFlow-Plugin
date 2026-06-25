@@ -1,10 +1,10 @@
 import { getVideoInfo, getUserInfo } from '../../model/bilibili/video.js'
-import { extractMetadata, createBiliCookieFile } from '../../model/MediaParser.js'
+import { mediaParser } from '../../model/MediaParser.js'
 import { isLiveUrl } from './platforms.js'
 
 /**
  * 解析 B站 URL
- * 用自有 API 深度解析，获取完整元数据 + 封面
+ * 优先用自有 B站 API（快速，无需 Python 服务），API 失败时降级 media_parser
  * @param {string} url
  * @returns {Promise<object|null>} 归一化的元数据
  */
@@ -29,14 +29,14 @@ async function resolveBilibili(url) {
   }
 
   if (!bvid) {
-    // 非 BV 号链接（动态、直播、空间等）直接走 yt-dlp
+    // 非 BV 号链接（动态、直播、空间等）走 media_parser 降级
     return await resolveGeneric(url)
   }
 
   // BV 号 → 调用 B站自有 API 获取详情
   const info = await getVideoInfo(bvid)
   if (!info) {
-    // B站 API 失败，降级用 yt-dlp
+    // B站 API 失败，降级 media_parser
     return await resolveGeneric(url)
   }
 
@@ -63,31 +63,33 @@ async function resolveBilibili(url) {
 }
 
 /**
- * 解析非 B站 URL（通过 yt-dlp）
+ * 解析非 B站 URL（通过 media_parser）
  * @param {string} url
  * @returns {Promise<object|null>}
  */
 async function resolveGeneric(url) {
   if (isLiveUrl(url)) return null
 
-  const meta = await extractMetadata(url)
+  // 通过 media_parser 服务解析
+  const results = await mediaParser.parse(url)
+  if (!results || !Array.isArray(results) || !results.length) return null
+
+  // 取第一个匹配结果
+  const meta = results[0]
   if (!meta) return null
 
   return {
-    platform: meta.extractorKey || 'unknown',
-    id: meta.id,
-    title: meta.title,
-    description: meta.description || '',
-    uploader: meta.uploader || '',
+    platform: meta.platform || meta.extractorKey || 'unknown',
+    id: meta.id || '',
+    title: meta.title || '',
+    description: meta.desc || meta.description || '',
+    uploader: meta.author || meta.uploader || '',
     uploaderId: meta.uploaderId || '',
     duration: meta.duration || 0,
-    durationText: meta.durationString || '',
-    thumbnail: meta.thumbnail || '',
-    viewCount: meta.viewCount || 0,
-    likeCount: meta.likeCount || 0,
-    width: meta.width || 0,
-    height: meta.height || 0,
-    source: 'yt-dlp',
+    thumbnail: meta.thumbnail || meta.cover || '',
+    videoUrls: meta.video_urls || [],
+    imageUrls: meta.image_urls || [],
+    source: 'media-parser',
   }
 }
 

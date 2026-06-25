@@ -1,248 +1,315 @@
 import path from 'node:path'
 import fs from 'node:fs'
+import { spawn } from 'node:child_process'
 import fetch from 'node-fetch'
 import { runSpawn, exists, ensureDir } from '../components/utils.js'
-import { ytDlpPath, YTDLP_DEFAULT_TIMEOUT_MS, YTDLP_DEFAULT_MAX_SIZE_MB, downloadCacheDir, botAccountsDir, toolDir } from '../components/constants.js'
-
-/** yt-dlp GitHub Release API */
-const YTDLP_RELEASE_API = 'https://api.github.com/repos/yt-dlp/yt-dlp/releases/latest'
-const YTDLP_DOWNLOAD_URL_WIN = 'https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp.exe'
-const YTDLP_VERSION_FILE = path.join(path.dirname(ytDlpPath), '.version')
+import {
+  mediaParserDir,
+  mediaParserVenvDir,
+  mediaParserServerPath,
+  ffmpegPath,
+  downloadCacheDir,
+  botAccountsDir,
+  MEDIA_PARSER_DEFAULT_PORT,
+  MEDIA_PARSER_STARTUP_TIMEOUT_MS,
+  MEDIA_PARSER_RESTART_LIMIT,
+  MEDIA_PARSER_RESTART_WINDOW_MS,
+} from '../components/constants.js'
+import { loadBotCookies, formatCookiesText } from './bilibili/auth.js'
 
 /**
- * 确保 yt-dlp 已安装并最新
- * 1. 不存在则从 GitHub 下载
- * 2. 存在但超过 YTDLP_UPDATE_INTERVAL_DAYS 天则更新
- * @returns {Promise<string>} yt-dlp 可执行文件路径
+ * MediaParser — Python media_parser HTTP 服务客户端
+ *
+ * 管理一个本地 Python HTTP 微服务（tool/media_parser/server.py），
+ * 提供 /parse /download /health 接口，支持 10 个平台的链接解析和下载。
+ *
+ * 生命周期：start() → parse()/download() → stop()
  */
-async function ensureYtDlp() {
-  const ytDir = path.dirname(ytDlpPath)
-  ensureDir(ytDir)
 
-  const needDownload = !fs.existsSync(ytDlpPath)
-  if (!needDownload) {
-    // 检查版本文件的年龄
-    if (fs.existsSync(YTDLP_VERSION_FILE)) {
+class MediaParser {
+  constructor() {
+    /** @type {import('node:child_process').ChildProcess|null} */
+    this._process = null
+    this._port = MEDIA_PARSER_DEFAULT_PORT
+    this._pythonPath = 'python'
+    this._started = false
+
+    // 崩溃重启控制
+    this._restartCount = 0
+    this._restartWindowStart = 0
+  }
+
+  /**
+   * 配置并启动 media_parser 服务
+   * @param {object} [opts]
+   * @param {string} [opts.pythonPath] - Python 可执行路径
+   * @param {number} [opts.port] - 监听端口
+   * @returns {Promise<boolean>} 是否启动成功
+   */
+  async start(opts = {}) {
+    if (this._started && await this.health()) return true
+
+    this._port = opts.port || MEDIA_PARSER_DEFAULT_PORT
+    this._pythonPath = opts.pythonPath || this._findVenvPython() || 'python'
+
+    // 检查 server.py 存在
+    if (!fs.existsSync(mediaParserServerPath)) {
+      logger?.warn('[LinkFlow] media_parser server.py 不存在，跳过启动')
+      return false
+    }
+
+    logger?.info(`[LinkFlow] 启动 media_parser 服务 (port=${this._port}) ...`)
+
+    try {
+      await this._spawnServer()
+      this._started = true
+      logger?.info('[LinkFlow] media_parser 服务启动成功')
+      return true
+    } catch (e) {
+      logger?.error(`[LinkFlow] media_parser 服务启动失败: ${e.message}`)
+      return false
+    }
+  }
+
+  /**
+   * 停止 media_parser 服务
+   */
+  async stop() {
+    this._started = false
+    if (this._process) {
       try {
-        const saved = new Date(fs.readFileSync(YTDLP_VERSION_FILE, 'utf8').trim()).getTime()
-        const ageDays = (Date.now() - saved) / (86400 * 1000)
-        if (ageDays < 30) return ytDlpPath  // 还不过期
-      } catch { /* 读取失败则重新下载 */ }
+        this._process.kill()
+      } catch {}
+      this._process = null
     }
   }
 
-  // 需要下载/更新
-  await downloadYtDlp(ytDir)
-  return ytDlpPath
-}
-
-/**
- * 从 GitHub Releases 下载 yt-dlp
- * @param {string} ytDir
- */
-async function downloadYtDlp(ytDir) {
-  try {
-    // 查询最新版本
-    const apiRes = await fetch(YTDLP_RELEASE_API, {
-      headers: { 'User-Agent': 'LinkFlow-Plugin/2.0', Accept: 'application/json' },
-    })
-    const release = await apiRes.json()
-    const tagName = release?.tag_name || 'latest'
-
-    const downloadUrl = process.platform === 'win32' ? YTDLP_DOWNLOAD_URL_WIN
-      : 'https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp'
-
-    logger?.info(`[LinkFlow] 正在下载 yt-dlp ${tagName} ...`)
-    const res = await fetch(downloadUrl)
-    if (!res.ok) throw new Error(`yt-dlp 下载失败: HTTP ${res.status}`)
-
-    const buf = Buffer.from(await res.arrayBuffer())
-    const tmp = ytDlpPath + '.tmp'
-    fs.writeFileSync(tmp, buf)
-
-    // 替换旧版本
-    if (fs.existsSync(ytDlpPath)) fs.unlinkSync(ytDlpPath)
-    fs.renameSync(tmp, ytDlpPath)
-
-    // Windows: 不需要 chmod
-    if (process.platform !== 'win32') {
-      fs.chmodSync(ytDlpPath, 0o755)
-    }
-
-    // 写入版本文件
-    fs.writeFileSync(YTDLP_VERSION_FILE, new Date().toISOString(), 'utf8')
-    logger?.info(`[LinkFlow] yt-dlp ${tagName} 下载完成`)
-  } catch (e) {
-    logger?.error('[LinkFlow] yt-dlp 下载失败:', e)
-    // 已有旧版则继续用
-    if (fs.existsSync(ytDlpPath)) {
-      logger?.info('[LinkFlow] 回退使用已有 yt-dlp')
-      return
-    }
-    throw e
-  }
-}
-
-/**
- * 使用 yt-dlp 提取媒体元数据（不下载）
- * @param {string} url - 视频 URL
- * @param {object} [opts]
- * @param {number} [opts.timeout] - 超时毫秒
- * @returns {Promise<object|null>} 解析后的元数据
- */
-async function extractMetadata(url, opts = {}) {
-  try {
-    const ytDlpBin = await ensureYtDlp()
-    const { stdout } = await runSpawn(ytDlpBin, [
-      '-j',          // JSON 输出
-      '--no-playlist',
-      '--flat-playlist',
-      '--socket-timeout', '15',
-      url,
-    ], { timeout: opts.timeout || 30000 })
-
-    const info = JSON.parse(stdout)
-    return normalizeMetadata(info)
-  } catch (e) {
-    logger?.error('[LinkFlow] extractMetadata 失败:', e.message)
+  /**
+   * 健康检查
+   * @returns {Promise<object|null>} {status, platforms} 或 null
+   */
+  async health() {
+    try {
+      const res = await fetch(`http://127.0.0.1:${this._port}/health`, {
+        timeout: 5000,
+      })
+      if (res.ok) return await res.json()
+    } catch {}
     return null
   }
-}
 
-/**
- * 使用 yt-dlp 下载视频
- * @param {string} url - 视频 URL
- * @param {object} [opts]
- * @param {string} [opts.format] - 格式选择器，默认 'bv*[height<=1080]+ba/b'
- * @param {number} [opts.timeout] - 超时毫秒
- * @param {number} [opts.maxSizeMb] - 最大文件大小 MB
- * @param {string} [opts.cookiesFile] - B站 cookie 文件路径（Netscape 格式）
- * @returns {Promise<{filePath: string, metadata: object}|null>}
- */
-async function downloadMedia(url, opts = {}) {
-  const timeout = opts.timeout || YTDLP_DEFAULT_TIMEOUT_MS
-  const maxSizeMb = opts.maxSizeMb || YTDLP_DEFAULT_MAX_SIZE_MB
-  const format = opts.format || 'bv*[height<=1080]+ba/b'
+  /**
+   * 解析文本中的链接
+   * @param {string} text - 包含链接的文本
+   * @param {object} [opts]
+   * @param {string} [opts.cookie] - Cookie 字符串
+   * @returns {Promise<Array|null>} 解析结果列表
+   */
+  async parse(text, opts = {}) {
+    try {
+      const cookie = opts.cookie || this._getBotCookieString()
+      const res = await fetch(`http://127.0.0.1:${this._port}/parse`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ text, cookie }),
+        timeout: 120000,
+      })
 
-  ensureDir(downloadCacheDir)
+      if (!res.ok) {
+        const err = await res.text()
+        logger?.error(`[LinkFlow] media_parser parse 失败: ${err}`)
+        return null
+      }
 
-  const outputTemplate = path.join(downloadCacheDir, '%(title).100s [%(id)s].%(ext)s')
+      return await res.json()
+    } catch (e) {
+      logger?.error(`[LinkFlow] media_parser parse 请求失败: ${e.message}`)
+      return null
+    }
+  }
 
-  try {
-    const ytDlpBin = await ensureYtDlp()
+  /**
+   * 下载解析后的媒体
+   * @param {object} metadata - 解析结果（来自 parse）
+   * @param {object} [opts]
+   * @param {number} [opts.maxSizeMb] - 最大文件大小 MB
+   * @param {string} [opts.cookie] - Cookie 字符串
+   * @returns {Promise<object|null>} 下载结果
+   */
+  async download(metadata, opts = {}) {
+    try {
+      const cookie = opts.cookie || this._getBotCookieString()
+      const res = await fetch(`http://127.0.0.1:${this._port}/download`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          metadata,
+          max_size_mb: opts.maxSizeMb || 0,
+          cookie,
+        }),
+        timeout: 600000,
+      })
+
+      if (!res.ok) {
+        const err = await res.text()
+        logger?.error(`[LinkFlow] media_parser download 失败: ${err}`)
+        return null
+      }
+
+      return await res.json()
+    } catch (e) {
+      logger?.error(`[LinkFlow] media_parser download 请求失败: ${e.message}`)
+      return null
+    }
+  }
+
+  /**
+   * 服务是否已启动
+   * @returns {boolean}
+   */
+  isStarted() {
+    return this._started
+  }
+
+  // ==================== 内部方法 ====================
+
+  /**
+   * Spawn Python 服务进程
+   */
+  async _spawnServer() {
     const args = [
-      '-f', format,
-      '-P', downloadCacheDir,
-      '-o', outputTemplate,
-      '--no-playlist',
-      '--no-mtime',
-      '--socket-timeout', '15',
-      '--max-filesize', `${maxSizeMb}M`,
-      '--print', 'after_move:filepath',
-      '--print', 'after_move:title',
-      '--print', 'after_move:uploader',
+      mediaParserServerPath,
+      '--host', '127.0.0.1',
+      '--port', String(this._port),
     ]
 
-    // B站 cookie
-    if (opts.cookiesFile && fs.existsSync(opts.cookiesFile)) {
-      args.push('--cookies', opts.cookiesFile)
+    // 传递 ffmpeg 路径
+    if (fs.existsSync(ffmpegPath)) {
+      args.push('--ffmpeg-path', ffmpegPath)
     }
 
-    args.push(url)
-
-    const { stdout, stderr } = await runSpawn(ytDlpBin, args, { timeout })
-
-    // stdout 行：filepath\ntitle\nuploader\n
-    const lines = stdout.trim().split('\n')
-    const filePath = lines[0]?.trim() || ''
-    const title = lines[1]?.trim() || ''
-    const uploader = lines[2]?.trim() || ''
-
-    if (!filePath || !fs.existsSync(filePath)) {
-      throw new Error(`下载失败: 未找到输出文件\n${stderr}`)
+    // 传递 Cookie 文件
+    const cookieFile = await this._createCookieFile()
+    if (cookieFile) {
+      args.push('--cookie-file', cookieFile)
     }
 
-    // 检查文件大小
-    const stat = fs.statSync(filePath)
-    const sizeMb = stat.size / (1024 * 1024)
-    if (sizeMb > maxSizeMb) {
-      fs.unlinkSync(filePath)
-      throw new Error(`文件过大: ${sizeMb.toFixed(1)}MB > ${maxSizeMb}MB`)
+    this._process = spawn(this._pythonPath, args, {
+      cwd: mediaParserDir,
+      windowsHide: true,
+      stdio: ['ignore', 'pipe', 'pipe'],
+    })
+
+    // 捕获输出到日志
+    const logStream = fs.createWriteStream(
+      path.join(mediaParserDir, 'server-stdout.log'),
+      { flags: 'a' }
+    )
+    this._process.stdout?.on('data', d => {
+      logStream.write(d)
+    })
+    this._process.stderr?.on('data', d => {
+      logStream.write(d)
+    })
+
+    // 进程退出处理
+    this._process.on('close', (code) => {
+      logStream.end()
+      if (this._started) {
+        logger?.warn(`[LinkFlow] media_parser 服务退出 (code=${code})`)
+        this._tryRestart()
+      }
+    })
+
+    this._process.on('error', (err) => {
+      logStream.end()
+      logger?.error(`[LinkFlow] media_parser 服务启动异常: ${err.message}`)
+    })
+
+    // 等待 /health 就绪
+    const deadline = Date.now() + MEDIA_PARSER_STARTUP_TIMEOUT_MS
+    while (Date.now() < deadline) {
+      const h = await this.health()
+      if (h) return
+      await new Promise(r => setTimeout(r, 1000))
     }
 
-    return {
-      filePath,
-      metadata: { title, uploader, sizeMb: sizeMb.toFixed(1) },
+    throw new Error('media_parser 服务启动超时')
+  }
+
+  /**
+   * 崩溃后自动重启
+   */
+  async _tryRestart() {
+    const now = Date.now()
+    if (now - this._restartWindowStart > MEDIA_PARSER_RESTART_WINDOW_MS) {
+      this._restartCount = 0
+      this._restartWindowStart = now
     }
-  } catch (e) {
-    logger?.error('[LinkFlow] downloadMedia 失败:', e.message)
-    return null
+
+    this._restartCount++
+    if (this._restartCount > MEDIA_PARSER_RESTART_LIMIT) {
+      logger?.error(`[LinkFlow] media_parser 重启次数超过限制 (${MEDIA_PARSER_RESTART_LIMIT}次/${MEDIA_PARSER_RESTART_WINDOW_MS / 1000}秒)，不再重试`)
+      this._started = false
+      return
+    }
+
+    logger?.info(`[LinkFlow] media_parser 自动重启 (${this._restartCount}/${MEDIA_PARSER_RESTART_LIMIT}) ...`)
+    try {
+      await this._spawnServer()
+    } catch (e) {
+      logger?.error(`[LinkFlow] media_parser 重启失败: ${e.message}`)
+    }
+  }
+
+  /**
+   * 查找 venv 中的 Python
+   * @returns {string|null}
+   */
+  _findVenvPython() {
+    const venvPython = process.platform === 'win32'
+      ? path.join(mediaParserVenvDir, 'Scripts', 'python.exe')
+      : path.join(mediaParserVenvDir, 'bin', 'python')
+
+    return fs.existsSync(venvPython) ? venvPython : null
+  }
+
+  /**
+   * 获取 bot Cookie 字符串
+   * @returns {string}
+   */
+  _getBotCookieString() {
+    const cookies = loadBotCookies()
+    return cookies ? formatCookiesText(cookies) : ''
+  }
+
+  /**
+   * 创建 Netscape 格式 Cookie 文件（供 Python 服务使用）
+   * @returns {Promise<string|null>}
+   */
+  async _createCookieFile() {
+    const ckPath = path.join(botAccountsDir, 'bilibili.json')
+    if (!fs.existsSync(ckPath)) return null
+
+    try {
+      const payload = JSON.parse(fs.readFileSync(ckPath, 'utf8'))
+      const cookies = payload?.cookies
+      if (!cookies) return null
+
+      const cookieFile = path.join(mediaParserDir, '.bili_cookies.txt')
+      const lines = ['# Netscape HTTP Cookie File']
+      for (const [name, value] of Object.entries(cookies)) {
+        lines.push(`.bilibili.com\tTRUE\t/\tFALSE\t0\t${name}\t${value}`)
+      }
+      fs.writeFileSync(cookieFile, lines.join('\n'), 'utf8')
+      return cookieFile
+    } catch {
+      return null
+    }
   }
 }
 
-/**
- * 将 B站 Cookie 转为 Netscape 格式临时文件（供 yt-dlp --cookies 使用）
- * @returns {Promise<string|null>} cookie 文件路径，无 bot cookie 则返回 null
- */
-async function createBiliCookieFile() {
-  const cookieFile = path.join(downloadCacheDir, '.bili_cookies.txt')
-  const ckPath = path.join(botAccountsDir, 'bilibili.json')
-  if (!fs.existsSync(ckPath)) return null
+/** 单例 */
+const mediaParser = new MediaParser()
 
-  try {
-    const payload = JSON.parse(fs.readFileSync(ckPath, 'utf8'))
-    const cookies = payload?.cookies
-    if (!cookies) return null
-
-    const lines = ['# Netscape HTTP Cookie File']
-    for (const [name, value] of Object.entries(cookies)) {
-      lines.push(`.bilibili.com\tTRUE\t/\tFALSE\t0\t${name}\t${value}`)
-    }
-    ensureDir(downloadCacheDir)
-    fs.writeFileSync(cookieFile, lines.join('\n'), 'utf8')
-    return cookieFile
-  } catch {
-    return null
-  }
-}
-
-/**
- * 将 yt-dlp -j 原始信息归一化为标准结构
- * @param {object} raw
- * @returns {object}
- */
-function normalizeMetadata(raw) {
-  return {
-    id: raw.id || raw.display_id || '',
-    title: raw.title || '',
-    fulltitle: raw.fulltitle || raw.title || '',
-    description: raw.description || '',
-    uploader: raw.uploader || '',
-    uploaderId: raw.uploader_id || '',
-    uploaderUrl: raw.uploader_url || '',
-    duration: raw.duration || 0,
-    durationString: raw.duration_string || raw.duration || '',
-    viewCount: raw.view_count || 0,
-    likeCount: raw.like_count || 0,
-    thumbnail: raw.thumbnail || '',
-    webpageUrl: raw.webpage_url || raw.original_url || '',
-    extractor: raw.extractor || '',
-    extractorKey: raw.extractor_key || '',
-    timestamp: raw.timestamp || 0,
-    uploadDate: raw.upload_date || '',
-    width: raw.width || 0,
-    height: raw.height || 0,
-    formats: (raw.formats || []).map(f => ({
-      formatId: f.format_id || '',
-      ext: f.ext || '',
-      width: f.width || 0,
-      height: f.height || 0,
-      filesize: f.filesize || 0,
-      formatNote: f.format_note || '',
-      vcodec: f.vcodec || '',
-      acodec: f.acodec || '',
-    })),
-  }
-}
-
-export { ensureYtDlp, extractMetadata, downloadMedia, createBiliCookieFile, normalizeMetadata }
+export { mediaParser, MediaParser }

@@ -10,6 +10,7 @@ import { loadUserConfig, saveUserConfig, listUserConfigs, MAX_SLOTS } from '../m
 import { loadWhitelist, saveWhitelist } from '../modules/linkparse/Whitelist.js'
 import * as mainMod from './main.js'
 import * as linkparseMod from './linkparse.js'
+import * as toolMod from './tool.js'
 import * as subscribeMod from './subscribe.js'
 import * as incentiveMod from './incentive.js'
 
@@ -20,6 +21,7 @@ const defaultConfigPath = path.join(pluginRoot, 'defSet', 'config.yaml')
 const allDefaults = {
   ...mainMod.getDefaults(),
   ...linkparseMod.getDefaults(),
+  ...toolMod.getDefaults(),
   ...subscribeMod.getDefaults(),
   ...incentiveMod.getDefaults(),
 }
@@ -114,6 +116,7 @@ export function supportGuoba() {
       schemas: [
         ...mainMod.getSchema(),
         ...linkparseMod.getSchema(),
+        ...toolMod.getSchema(),
         ...subscribeMod.getSchema(),
         ...incentiveMod.getSchema(),
         // ==================== 用户配置列表 ====================
@@ -149,6 +152,9 @@ export function supportGuoba() {
         const watch = userCfg.incentive?.watch || {}
         const linkparse = userCfg.linkparse || {}
         const dl = linkparse.download || {}
+        const tool = userCfg.tool || {}
+        const tbbdown = tool.bbdown || {}
+        const tmediaParser = tool.mediaParser || {}
         const subscribe = userCfg.subscribe || {}
         const sdyn = subscribe.dynamic || {}
         const slive = subscribe.live || {}
@@ -175,6 +181,17 @@ export function supportGuoba() {
           // 全局
           'global.enabled': userCfg.global?.enabled ?? true,
           'login.pollTimeout': userCfg.login?.pollTimeout ?? 180,
+
+          // 工具管理
+          'tool.autoInstall': tool.autoInstall ?? true,
+          'tool.bbdown.enabled': tbbdown.enabled ?? true,
+          'tool.bbdown.useAria2': tbbdown.useAria2 ?? false,
+          'tool.bbdown.resolution': tbbdown.resolution ?? '',
+          'tool.ffmpeg.enabled': tool.ffmpeg?.enabled ?? true,
+          'tool.aria2.enabled': tool.aria2?.enabled ?? true,
+          'tool.mediaParser.enabled': tmediaParser.enabled ?? true,
+          'tool.mediaParser.pythonPath': tmediaParser.pythonPath ?? 'python',
+          'tool.mediaParser.port': tmediaParser.port ?? 19810,
 
           // 链接解析
           'linkparse.enabled': linkparse.enabled ?? true,

@@ -13,6 +13,35 @@ login:
   # 扫码登录轮询超时（秒）
   pollTimeout: 180
 
+# ---------- 外部工具 ----------
+tool:
+  # 自动安装缺失的工具
+  autoInstall: true
+
+  # ===== BBDown（B站下载）=====
+  bbdown:
+    enabled: true
+    # 是否使用 aria2 加速下载
+    useAria2: false
+    # 画质优先级，留空由BBDown自动选择
+    resolution: ''
+
+  # ===== ffmpeg（音视频合并）=====
+  ffmpeg:
+    enabled: true
+
+  # ===== aria2（多线程加速）=====
+  aria2:
+    enabled: true
+
+  # ===== media_parser（非B站解析下载）=====
+  mediaParser:
+    enabled: true
+    # Python 可执行文件路径
+    pythonPath: 'python'
+    # HTTP 服务端口
+    port: 19810
+
 # ---------- 链接解析（apps/linkparse.js）----------
 linkparse:
   # 解析总开关

@@ -67,6 +67,32 @@ const whitelistDir = path.join(configDir, 'incentive_config')
 fs.mkdirSync(whitelistDir, { recursive: true })
 ensureConfig(path.join('incentive_config', 'whitelist.yaml'))
 
+// ---- 异步初始化 tool / media_parser（不阻塞启动） ----
+setImmediate(async () => {
+  try {
+    const { getPluginConfig } = await import('./components/config.js')
+    const cfg = getPluginConfig()
+    const toolCfg = cfg?.tool || {}
+
+    // 工具自动安装
+    if (toolCfg.autoInstall !== false) {
+      const { toolManager } = await import('./components/ToolManager.js')
+      await toolManager.ensureAll(toolCfg)
+    }
+
+    // media_parser 服务启动
+    if (toolCfg.mediaParser?.enabled !== false) {
+      const { mediaParser } = await import('./model/MediaParser.js')
+      const { ffmpegPath } = await import('./components/constants.js')
+      const pythonPath = toolCfg.mediaParser?.pythonPath || undefined
+      const port = toolCfg.mediaParser?.port || undefined
+      await mediaParser.start({ pythonPath, port })
+    }
+  } catch (e) {
+    logger.error('[LinkFlow] 工具/服务初始化失败:', e)
+  }
+})
+
 const readdir = promisify(fs.readdir)
 
 logger.info('----LinkFlow-Plugin v2.0.0----')

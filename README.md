@@ -19,7 +19,7 @@ pnpm install -P --filter LinkFlow-Plugin
 ```
 
 > [!NOTE]
-> 首次启动会自动下载 yt-dlp.exe 到 `tool/yt-dlp/`，用于非 B 站平台的视频解析与下载。
+> 首次启动需发送 `#初始化工具环境` 安装 BBDown / ffmpeg / aria2 / media_parser，或开启配置 `tool.autoInstall` 自动安装。
 
 ## 指令总表
 
@@ -80,11 +80,12 @@ pnpm install -P --filter LinkFlow-Plugin
 
 | 指令 | 权限 | 说明 |
 |------|------|------|
+| `#初始化工具环境` | 主人 | 自动检查并安装 BBDown / ffmpeg / aria2 / media_parser |
 | `#linkflow帮助` | 所有人 | 查看帮助图片 |
 
 ## 功能特性
 
-- **10 平台链接解析**：B站使用自有 API 深度解析（WBI 签名），其他 9 平台通过 yt-dlp 提取元数据
+- **10 平台链接解析**：B站使用自有 API 深度解析 + BBDown 下载（降级 media_parser），其他 9 平台通过 media_parser 提取元数据并下载
 - **视频自动下载**：解析后自动下载视频（受配置开关、群白名单、大小限制控制）
 - **动态订阅推送**：cron 轮询 UP 主动态，去重后渲染 HTML 卡片推送
 - **直播订阅推送**：轮询直播间状态，开播/下播/标题变更自动通知
@@ -131,13 +132,13 @@ LinkFlow-Plugin/
 ├── guoba.support.js       # 锅巴入口（委托 guoba/index.js）
 ├── guoba/                 # 锅巴配置 UI（按模块拆分）
 ├── apps/                  # 指令路由（login/subscribe/linkparse/incentive/help）
-├── model/                 # 数据层（bilibili API + yt-dlp 封装 + 直播 API）
+├── model/                 # 数据层（bilibili API + BBDown + media_parser 客户端 + 直播 API）
 ├── modules/               # 业务模块（subscribe/linkparse/incentive/livepush）
-├── components/            # 可复用组件（config/render/constants/utils/...）
+├── components/            # 可复用组件（config/ToolManager/render/constants/utils/...）
 ├── config/                # 运行时配置（gitignore）
 ├── defSet/                # 锅巴配置模板
 ├── resources/             # HTML 模板 + 静态资源
-└── tool/                  # 外部工具（yt-dlp）
+└── tool/                  # 外部工具（BBDown / ffmpeg / aria2 / media_parser）
 ```
 
 ## 免责声明
@@ -153,4 +154,5 @@ LinkFlow-Plugin/
 
 - [GetLiveAward](https://github.com/yuzeeesama/GetLiveAward) — 激励领取接口参考
 - [bililivePush-plugin](https://github.com/HDTianRu/bililivePush-plugin) — 直播推送功能基础
-- [yt-dlp](https://github.com/yt-dlp/yt-dlp) — 多平台视频解析下载引擎
+- [BBDown](https://github.com/nilaoda/BBDown) — B站视频下载
+- [astrbot_plugin_media_parser](https://github.com/drdon1234/astrbot_plugin_media_parser) — 多平台视频解析引擎
