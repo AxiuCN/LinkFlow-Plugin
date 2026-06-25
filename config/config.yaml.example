@@ -23,8 +23,8 @@ tool:
     enabled: true
     # 是否使用 aria2 加速下载
     useAria2: false
-    # 画质优先级，留空由BBDown自动选择
-    resolution: ''
+    # 画质优先级，逗号分隔多个值按序降级，留空由BBDown自动选择
+    resolution: 720P
 
   # ===== ffmpeg（音视频合并）=====
   ffmpeg:

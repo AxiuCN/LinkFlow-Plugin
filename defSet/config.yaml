@@ -23,7 +23,7 @@ tool:
     enabled: ${tool_bbdown_enabled}
     # 是否使用 aria2 加速下载
     useAria2: ${tool_bbdown_useAria2}
-    # 画质优先级，留空由BBDown自动选择
+    # 画质优先级（逗号分隔多值降序），留空由BBDown自动选择，默认720P
     resolution: ${tool_bbdown_resolution}
 
   # ===== ffmpeg（音视频合并）=====

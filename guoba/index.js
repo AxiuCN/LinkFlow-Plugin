@@ -189,7 +189,7 @@ export function supportGuoba() {
           'tool.autoInstall': tool.autoInstall ?? true,
           'tool.bbdown.enabled': tbbdown.enabled ?? true,
           'tool.bbdown.useAria2': tbbdown.useAria2 ?? false,
-          'tool.bbdown.resolution': tbbdown.resolution ?? '',
+          'tool.bbdown.resolution': tbbdown.resolution ? tbbdown.resolution.split(',').filter(Boolean) : [],
           'tool.ffmpeg.enabled': tool.ffmpeg?.enabled ?? true,
           'tool.aria2.enabled': tool.aria2?.enabled ?? true,
           'tool.mediaParser.enabled': tmediaParser.enabled ?? true,
