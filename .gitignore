@@ -5,7 +5,9 @@ data/
 logs/
 
 # 工具目录
-tool/
+tool/bbdown/
+tool/ffmpeg/
+tool/aria2/
 
 # 用户本地配置（仅 .example 可上传）
 config/*.yaml
