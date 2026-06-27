@@ -203,6 +203,13 @@ async def handle_parse(request):
         results = []
         for meta in metadata_list:
             serialized = _serialize_metadata(meta)
+            # 防御性修复: url为空时回退source_url
+            if not serialized.get("url"):
+                fallback = serialized.get("source_url", "")
+                if fallback:
+                    serialized["url"] = fallback
+            if not serialized.get("source_url"):
+                serialized["source_url"] = serialized.get("url", "")
             vurls = serialized.get("video_urls", [])
             iurls = serialized.get("image_urls", [])
             _logger.info(
@@ -210,6 +217,7 @@ async def handle_parse(request):
                 f"title={serialized.get('title','')[:30]}, "
                 f"video_urls={len(vurls)}组({[len(g) for g in vurls]}), "
                 f"image_urls={len(iurls)}组({[len(g) for g in iurls]})"
+                + (f", error={serialized.get('error','')[:60]}" if serialized.get("error") else "")
             )
             results.append(serialized)
 
@@ -240,6 +248,15 @@ async def handle_download(request):
     if not metadata:
         return web.json_response({"error": "metadata is required"}, status=400)
 
+    # 防御性修复: 补齐解析阶段可能缺失的关键字段
+    if not metadata.get("url"):
+        fallback_url = metadata.get("source_url", "")
+        if fallback_url:
+            _logger.info(f"download url为空，回退source_url: {fallback_url[:80]}")
+            metadata["url"] = fallback_url
+    if not metadata.get("source_url"):
+        metadata["source_url"] = metadata.get("url", "")
+
     vurls = metadata.get("video_urls", [])
     iurls = metadata.get("image_urls", [])
     _logger.info(
@@ -248,6 +265,7 @@ async def handle_download(request):
         f"video_urls={len(vurls)}组({[len(g) for g in vurls]}), "
         f"image_urls={len(iurls)}组({[len(g) for g in iurls]}), "
         f"max_size_mb={max_size_mb}"
+        + (f", error={metadata.get('error','')[:60]}" if metadata.get("error") else "")
     )
 
     # 如果指定了 max_size_mb，临时修改下载管理器设置
