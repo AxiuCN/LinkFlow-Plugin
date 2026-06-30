@@ -308,23 +308,47 @@ export class BiliIncentive extends plugin {
         threads,
         duration,
         onProgress: ({ attempts, elapsed }) => {
-          // 每 10 次尝试汇报一次进度
           if (attempts % 10 === 0) {
             logger?.info(`[LinkFlow] QQ ${e.user_id} task ${taskId}: ${attempts}次尝试, 已过${elapsed}s`)
           }
         },
       })
 
-      if (result.success) {
-        const name = result.awardInfo?.award_name || result.awardInfo?.task_name || ''
-        const nameStr = name ? ` 奖励: ${name}` : ''
-        return this.reply(`[LinkFlow] 领取成功！cdkey=${result.cdkey}${nameStr}，耗时${result.elapsed}s，共尝试${result.attempts}次`)
-      } else {
-        const name = result.awardInfo?.award_name || ''
-        const nameStr = name ? ` (${name})` : ''
-        const errStr = result.lastError ? `\n最后错误: ${result.lastError}` : ''
-        return this.reply(`[LinkFlow] 领取失败: ${result.reason}${nameStr}，耗时${result.elapsed}s，共尝试${result.attempts}次${errStr}`)
-      }
+      // 构建 HTML 模板数据（复用 incentive/user 单槽位）
+      const awardName = result.awardInfo?.award_name || ''
+      const actName = result.awardInfo?.act_name || ''
+      const taskName = result.awardInfo?.task_name || ''
+      const taskDesc = result.awardInfo?.task_desc || ''
+      const status = result.success ? 'claimed' : 'failed'
+      const displayText = result.success
+        ? `领取成功 (${result.elapsed}s, ${result.attempts}次)`
+        : `${result.reason} (${result.elapsed}s, ${result.attempts}次)`
+
+      const d = new Date()
+      const date = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`
+
+      const img = await render('incentive/user', 'index', {
+        qq: e.user_id,
+        date,
+        mode: 'manual',
+        modeLabel: '手动领取',
+        hasTasks: true,
+        version: pluginVersion,
+        yunzaiVersion,
+        slots: [{
+          index: 1,
+          status,
+          displayText,
+          act_name: actName,
+          task_name: taskName,
+          task_desc: taskDesc,
+          award_name: awardName,
+          cdkey: result.cdkey || '',
+        }],
+        clearedCount: 0,
+      }, 'png')
+
+      return this.reply([segment.at(e.user_id), img], false)
     } catch (err) {
       logger?.error(`[LinkFlow] QQ ${e.user_id} 手动领取异常:`, err)
       return this.reply(`[LinkFlow] 领取过程异常: ${err.message}`)
