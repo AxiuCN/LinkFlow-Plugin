@@ -51,6 +51,36 @@ function isAlreadyClaimed(errMsg) {
 }
 
 /**
+ * 终态错误码→中止原因
+ * 与 BiliClient.claimAward 中的终态码保持同步，
+ * 这些码重试无效，应立刻停止
+ */
+const TERMINAL_CODES = {
+  '-101': 'Cookie已失效，请重新 #B站登录',
+  '202030': '奖励类型错误',
+  '202031': '已领取过',
+  // 202032（无资格）在用 #领取激励 时是在抢第一批完成的激励奖励，完成状态同步不及时，应继续重试
+  '202101': '账号行为异常',
+  '202120': '未到领取时间',
+  '202129': '活动已结束',
+  '75255': '库存耗尽',
+}
+
+/**
+ * 从错误消息中提取终态码，若非终态则返回 null
+ * BiliClient 抛出的消息格式: "终态: code=xxx msg=..." 或 "领取失败: wN-M: code=xxx msg=..."
+ * @param {string} errMsg
+ * @returns {string|null} — 中止原因，null 表示可重试
+ */
+function checkTerminalError(errMsg) {
+  if (!errMsg) return null
+  for (const [code, reason] of Object.entries(TERMINAL_CODES)) {
+    if (errMsg.includes(`code=${code}`)) return reason
+  }
+  return null
+}
+
+/**
  * 从 API 错误字符串中提取最后一个 code 和 msg
  * 多 worker 重试时 errLog 包含多次尝试，取最后一个反映最终结果
  * 兼容格式：code=202031 msg=xxx、code=-509 message=xxx、终态: code=202031 msg=xxx、领取失败: ...
@@ -853,7 +883,7 @@ async function processUserFallback(qq, links) {
   return { qq, notifyGroup, slots, clearedCount: 0, mode: 'fallback' }
 }
 
-// ===================== 手动领取 =====================
+// ===================== 手动领取每日激励 =====================
 
 /**
  * #领取每日激励 — 手动触发指定用户的每日任务激励领取
@@ -869,6 +899,8 @@ async function manualDailyClaim(qq) {
   const result = await processUserFallback(qq, links)
   return buildPersonalNotifyData(result, todayStr())
 }
+
+// ===================== 手动领取指定激励 =====================
 
 /**
  * #领取激励 <间隔> <线程数> <持续时间> <task_id>
@@ -933,16 +965,11 @@ async function manualTaskClaim(qq, taskId, opts) {
         lastError = e.message || String(e)
         if (e.awardInfo) awardInfo = e.awardInfo
 
-        // 已领取 → 直接返回，不重试
-        if (lastError.includes('202031') || lastError.includes('已领取')) {
+        // 终态错误：重试无效，立刻停止
+        const terminalReason = checkTerminalError(lastError)
+        if (terminalReason) {
           clearTimeout(deadline)
-          return { success: false, reason: '已领取过', awardInfo, attempts, elapsed: Math.round((Date.now() - startTime) / 1000) }
-        }
-
-        // 活动已结束 → 直接返回
-        if (lastError.includes('202129')) {
-          clearTimeout(deadline)
-          return { success: false, reason: '活动已结束', awardInfo, attempts, elapsed: Math.round((Date.now() - startTime) / 1000) }
+          return { success: false, reason: terminalReason, awardInfo, attempts, elapsed: Math.round((Date.now() - startTime) / 1000), lastError }
         }
 
         if (onProgress) {
