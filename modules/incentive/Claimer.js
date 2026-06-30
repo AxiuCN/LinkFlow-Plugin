@@ -40,13 +40,18 @@ async function doLogin(qq, opts = {}) {
  * @param {Function} [logCb] — 每次请求的回调 (msg)，用于文件日志
  * @param {object} [awardInfo] — 可选，预获取的任务信息，若提供则跳过内部 getAwardInfo
  * @param {string} [configKey='claim'] — 配置键名 'claim' 或 'watch'
+ * @param {object} [overrides] — 可选，覆盖配置中的领取参数
+ * @param {number} [overrides.threadCount] — 并发线程数
+ * @param {number} [overrides.maxRetry] — 最大重试次数
+ * @param {number} [overrides.retryInterval] — 重试间隔（秒）
+ * @param {number} [overrides.timeout] — 单次请求超时（秒）
  * @returns {Promise<{cdkey: string, awardInfo: object}>}
  */
-async function doClaim(taskId, qq, cancelSignal, logCb = null, awardInfo = null, configKey = 'claim') {
+async function doClaim(taskId, qq, cancelSignal, logCb = null, awardInfo = null, configKey = 'claim', overrides = null) {
   const config = getPluginConfig()
   const claimCfg = config?.incentive?.[configKey] || {}
 
-  const client = await createClient(qq, {}, configKey)
+  const client = await createClient(qq, { timeout: overrides?.timeout }, configKey)
   if (!client) {
     throw new Error('您尚未绑定B站账号，请先发送 #B站登录')
   }
@@ -66,9 +71,9 @@ async function doClaim(taskId, qq, cancelSignal, logCb = null, awardInfo = null,
 
   try {
     const cdkey = await client.claimAward(taskId, awardInfo, {
-      threadCount: Math.max(1, claimCfg.threadCount || 2),
-      maxRetry: 30,
-      retryInterval: claimCfg.retryInterval || 1.0,
+      threadCount: overrides?.threadCount ?? Math.max(1, claimCfg.threadCount || 2),
+      maxRetry: overrides?.maxRetry ?? 30,
+      retryInterval: overrides?.retryInterval ?? claimCfg.retryInterval ?? 1.0,
       cancelSignal,
       logCb,
     })

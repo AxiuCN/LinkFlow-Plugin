@@ -1,5 +1,5 @@
 import { loadUserConfig, saveUserConfig, createDefaultUserConfig, createGlobalDefaultConfig, loadWhitelist, saveWhitelist, isWhitelisted, MAX_SLOTS } from '../modules/incentive/Config.js'
-import { onCronTick, onFallbackTick, manualDailyClaim } from '../modules/incentive/Scheduler.js'
+import { onCronTick, onFallbackTick, manualDailyClaim, manualTaskClaim } from '../modules/incentive/Scheduler.js'
 import { getPluginConfig } from '../components/config.js'
 import { getTaskInfo, setTaskInfo } from '../modules/incentive/TaskCache.js'
 import { createClient } from '../modules/incentive/Claimer.js'
@@ -21,6 +21,7 @@ export class BiliIncentive extends plugin {
         { reg: /^#领取每日激励$/i, fnc: 'cmdDailyClaim' },
         { reg: /^#(添加|增加)激励白名单\s*/i, fnc: 'cmdAddWhitelist' },
         { reg: /^#(删除|移除)激励白名单\s*/i, fnc: 'cmdRemoveWhitelist' },
+        { reg: /^#领取激励\s+\d+(\.[\d]+)?\s+\d+\s+\d+\s+\S+$/i, fnc: 'cmdManualClaim' },
         { reg: /^#激励白名单$/i, fnc: 'cmdWhitelist' },
       ],
     })
@@ -248,6 +249,86 @@ export class BiliIncentive extends plugin {
     cfg.links = links
     saveUserConfig(e.user_id, cfg)
     this.reply(`[LinkFlow] 已清空 槽位${slot}`)
+  }
+
+  // ========== 手动抢激励 ==========
+
+  /**
+   * #领取激励 <间隔> <线程数> <持续时间> <task_id>
+   * 在指定时间内持续重试抢单个 taskId 的奖励
+   * 例: #领取激励 1 3 120 abc123taskid
+   * 参数: 间隔1秒 3线程 最长120秒
+   */
+  async cmdManualClaim(e) {
+    if (!isWhitelisted(e.user_id) && !e.isMaster) {
+      return this.reply('[LinkFlow] 您不在白名单中')
+    }
+
+    if (!loadUserConfig(e.user_id)) {
+      return this.reply('[LinkFlow] 您还没有配置。发送 #激励创建配置 开始')
+    }
+
+    const raw = e.msg.replace(/^#领取激励\s*/i, '').trim()
+    const parts = raw.split(/\s+/)
+    if (parts.length < 4) {
+      return this.reply('[LinkFlow] 格式: #领取激励 <间隔秒> <线程数> <持续秒> <task_id>\n例: #领取激励 1 3 120 abc123taskid')
+    }
+
+    const interval = parseFloat(parts[0])
+    const threads = parseInt(parts[1])
+    const duration = parseInt(parts[2])
+    const rawTaskInput = parts.slice(3).join('')  // 支持链接含空格被截断的情况
+    // 支持完整链接（自动提取 task_id）或纯 task_id
+    let taskId
+    try { taskId = new URL(rawTaskInput).searchParams.get('task_id') } catch {}
+    if (!taskId) {
+      const m = rawTaskInput.match(/task_id=([^&\s]+)/)
+      if (m) taskId = m[1]
+    }
+    if (!taskId) taskId = rawTaskInput  // 当作纯 task_id
+
+    // 参数校验
+    if (isNaN(interval) || interval < 1 || interval > 10) {
+      return this.reply('[LinkFlow] 间隔时间无效，请输入 1-10 秒')
+    }
+    if (isNaN(threads) || threads < 1 || threads > 5) {
+      return this.reply('[LinkFlow] 线程数无效，请输入 1-5')
+    }
+    if (isNaN(duration) || duration < 1 || duration > 1800) {
+      return this.reply('[LinkFlow] 持续时间无效，请输入 1-1800 秒')
+    }
+
+    const awardName = getTaskInfo(taskId)?.award_name || ''
+    const awardHint = awardName ? ` (${awardName})` : ''
+    await this.reply(`[LinkFlow] 开始领取 task_id=${taskId}${awardHint}，间隔${interval}s，${threads}线程，最长${duration}s`)
+
+    try {
+      const result = await manualTaskClaim(e.user_id, taskId, {
+        interval,
+        threads,
+        duration,
+        onProgress: ({ attempts, elapsed }) => {
+          // 每 10 次尝试汇报一次进度
+          if (attempts % 10 === 0) {
+            logger?.info(`[LinkFlow] QQ ${e.user_id} task ${taskId}: ${attempts}次尝试, 已过${elapsed}s`)
+          }
+        },
+      })
+
+      if (result.success) {
+        const name = result.awardInfo?.award_name || result.awardInfo?.task_name || ''
+        const nameStr = name ? ` 奖励: ${name}` : ''
+        return this.reply(`[LinkFlow] 领取成功！cdkey=${result.cdkey}${nameStr}，耗时${result.elapsed}s，共尝试${result.attempts}次`)
+      } else {
+        const name = result.awardInfo?.award_name || ''
+        const nameStr = name ? ` (${name})` : ''
+        const errStr = result.lastError ? `\n最后错误: ${result.lastError}` : ''
+        return this.reply(`[LinkFlow] 领取失败: ${result.reason}${nameStr}，耗时${result.elapsed}s，共尝试${result.attempts}次${errStr}`)
+      }
+    } catch (err) {
+      logger?.error(`[LinkFlow] QQ ${e.user_id} 手动领取异常:`, err)
+      return this.reply(`[LinkFlow] 领取过程异常: ${err.message}`)
+    }
   }
 
   // ========== 白名单管理（主人） ==========

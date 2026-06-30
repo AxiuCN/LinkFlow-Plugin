@@ -7,6 +7,37 @@ import { getTaskInfo, setTaskInfo } from './TaskCache.js'
 import { render } from '../../components/render.js'
 import { pluginVersion, yunzaiVersion } from '../../components/pluginVersion.js'
 
+/**
+ * per-QQ 互斥锁：防止同一账号被定时任务和手动指令同时操作
+ * value 为当前正在执行的 Promise，key 为 QQ 号字符串
+ */
+const qqLocks = new Map()
+
+/**
+ * 获取 QQ 级别的锁，确保同一 QQ 串行化执行
+ * 如果该 QQ 已有进行中的任务，等它完成后再开始新任务
+ * @param {string|number} qq
+ * @param {() => Promise<any>} taskFn
+ * @returns {Promise<any>}
+ */
+async function acquireQQ(qq, taskFn) {
+  const key = String(qq)
+  const prev = qqLocks.get(key)
+  if (prev) {
+    // 等待前一个任务完成（无论成功失败）
+    await prev.catch(() => {})
+  }
+  const promise = taskFn()
+  qqLocks.set(key, promise)
+  try {
+    return await promise
+  } finally {
+    if (qqLocks.get(key) === promise) {
+      qqLocks.delete(key)
+    }
+  }
+}
+
 /** 默认截止时间（秒），可从配置覆盖 */
 const DEFAULT_DEADLINE = 40
 
@@ -148,7 +179,7 @@ async function onCronTick(mode = 'live') {
     logTask(`[${modeLabel}] 开始执行领取流程，共 ${links.length} 个链接`, qq)
 
     promises.push(
-      startClaimRound(qq, cfg, cancelSignal, slotRange, mode).catch(err => {
+      acquireQQ(qq, () => startClaimRound(qq, cfg, cancelSignal, slotRange, mode)).catch(err => {
         logger.error(`[LinkFlow] QQ ${qq} ${modeLabel}领取异常:`, err)
         return null
       }),
@@ -839,4 +870,95 @@ async function manualDailyClaim(qq) {
   return buildPersonalNotifyData(result, todayStr())
 }
 
-export { onCronTick, onFallbackTick, manualDailyClaim }
+/**
+ * #领取激励 <间隔> <线程数> <持续时间> <task_id>
+ * 在指定时间内持续重试抢单个 taskId 的奖励，参数完全由指令覆盖配置文件
+ *
+ * 与 cron 定时任务的互斥通过 per-QQ lock 保证：
+ * 如果 cron 正在为同一 QQ 运行，手动指令会等 cron 完成后再执行（反之亦然）
+ *
+ * @param {string|number} qq        — 用户 QQ
+ * @param {string} taskId           — B站激励 task_id
+ * @param {object} opts
+ * @param {number} opts.interval    — 重试间隔（秒），1-10
+ * @param {number} opts.threads     — 并发线程数，1-5
+ * @param {number} opts.duration    — 最大持续时间（秒），1-1800
+ * @param {Function} [opts.onProgress] — 进度回调 ({ attempts, elapsed, lastError })
+ * @returns {Promise<{success: boolean, reason?: string, cdkey?: string, awardInfo?: object, attempts: number, elapsed: number}>}
+ */
+async function manualTaskClaim(qq, taskId, opts) {
+  const { interval, threads, duration, onProgress } = opts
+
+  const startTime = Date.now()
+  const cancelSignal = { cancelled: false }
+  const deadline = setTimeout(() => {
+    cancelSignal.cancelled = true
+  }, duration * 1000)
+
+  let attempts = 0
+  let lastError = null
+  let awardInfo = null
+
+  // 预取任务信息
+  try {
+    const client = await createClient(qq)
+    if (client) {
+      for (let i = 0; i < 3; i++) {
+        try {
+          awardInfo = await client.getAwardInfo(taskId)
+          break
+        } catch (e) {
+          if (i < 2) await sleep(800 * (i + 1))
+        }
+      }
+      if (awardInfo) setTaskInfo(taskId, awardInfo)
+    }
+  } catch {}
+
+  // 优先读缓存
+  if (!awardInfo) awardInfo = getTaskInfo(taskId)
+
+  const result = await acquireQQ(qq, async () => {
+    while (!cancelSignal.cancelled) {
+      attempts++
+      try {
+        const { cdkey, awardInfo: info } = await doClaim(
+          taskId, qq, cancelSignal, null, awardInfo, 'claim',
+          { threadCount: threads, retryInterval: interval, maxRetry: 1 }
+        )
+        if (info) awardInfo = info
+        clearTimeout(deadline)
+        return { success: true, cdkey, awardInfo, attempts, elapsed: Math.round((Date.now() - startTime) / 1000) }
+      } catch (e) {
+        lastError = e.message || String(e)
+        if (e.awardInfo) awardInfo = e.awardInfo
+
+        // 已领取 → 直接返回，不重试
+        if (lastError.includes('202031') || lastError.includes('已领取')) {
+          clearTimeout(deadline)
+          return { success: false, reason: '已领取过', awardInfo, attempts, elapsed: Math.round((Date.now() - startTime) / 1000) }
+        }
+
+        // 活动已结束 → 直接返回
+        if (lastError.includes('202129')) {
+          clearTimeout(deadline)
+          return { success: false, reason: '活动已结束', awardInfo, attempts, elapsed: Math.round((Date.now() - startTime) / 1000) }
+        }
+
+        if (onProgress) {
+          onProgress({ attempts, elapsed: Math.round((Date.now() - startTime) / 1000), lastError })
+        }
+      }
+
+      if (!cancelSignal.cancelled) {
+        await sleep(interval * 1000)
+      }
+    }
+    return { success: false, reason: '超时', awardInfo, attempts, elapsed: Math.round((Date.now() - startTime) / 1000), lastError }
+  })
+
+  clearTimeout(deadline)
+  return result
+}
+
+export { onCronTick, onFallbackTick, manualDailyClaim, manualTaskClaim }
