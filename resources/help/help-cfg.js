@@ -39,7 +39,8 @@ export const helpList = [
       { icon: 87, title: '#激励添加 <序号> <链接>', desc: '填入槽位（1-10直播，11-20看播）' },
       { icon: 80, title: '#激励列表', desc: '查看20槽位状态' },
       { icon: 92, title: '#激励删除 <序号>', desc: '清空指定槽位' },
-      { icon: 69, title: '#领取每日激励', desc: '手动领取每日任务激励' }
+      { icon: 69, title: '#领取每日激励', desc: '手动领取每日任务激励' },
+      { icon: 69, title: '#领取激励 <间隔> <线程> <持续秒> <task_id>', desc: '手动持续抢激励' }
     ]
   },
   {
@@ -63,7 +64,8 @@ export const helpList = [
   {
     group: '通用',
     list: [
-      { icon: 1, title: '#linkflow帮助', desc: '查看帮助图' }
+      { icon: 1, title: '#LinkFlow帮助', desc: '查看帮助图' },
+      { icon: 1, title: '#初始化工具环境', desc: '检查安装BBDown/ffmpeg/aria2/media_parser' }
     ]
   },
   {
