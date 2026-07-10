@@ -23,7 +23,7 @@ export const helpList = [
   {
     group: '动态订阅',
     list: [
-      { icon: 71, title: '#订阅b站UP动态 <uid> [类型]', desc: '订阅UP主动态推送，可选类型：视频/图文/文章/转发/直播' },
+      { icon: 71, title: '#订阅b站UP动态 <uid>', desc: '订阅UP主动态推送（视频/图文/文章）' },
       { icon: 92, title: '#取消b站UP动态 <uid>', desc: '取消UP动态订阅' },
       { icon: 80, title: '#动态订阅列表', desc: '查看当前群/个人动态订阅' },
       { icon: 74, title: '前缀', desc: '指令前加"全体"@全体成员，"匿名"不@自己' },

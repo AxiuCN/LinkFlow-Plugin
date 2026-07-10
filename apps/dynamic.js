@@ -2,17 +2,7 @@ import { BiliClient } from '../model/BiliClient.js'
 import DynamicSubStore from '../modules/dynamic/SubStore.js'
 import DynamicScheduler from '../modules/dynamic/Scheduler.js'
 import { getPluginConfig } from '../components/config.js'
-import { keywordToTypes } from '../modules/dynamic/Query.js'
 import { DYNAMIC_DEFAULT_CRON } from '../components/constants.js'
-
-/**
- * 解析用户输入中的类型关键词
- * 例: "#订阅b站UP动态 12345 视频直播" → ["视频", "直播"]
- */
-function parseTypeKeywords(msg) {
-  const keywords = ['视频', '图文', '文章', '转发', '直播']
-  return keywords.filter(k => msg.includes(k))
-}
 
 export class BiliDynamic extends plugin {
   constructor() {
@@ -44,8 +34,8 @@ export class BiliDynamic extends plugin {
   }
 
   /**
-   * #订阅b站UP动态 <uid> [类型]
-   * 至少需提供 UID
+   * #订阅b站UP动态 <uid>
+   * 固定订阅视频+图文+文章，不含转发和直播
    */
   async cmdSubscribe(e) {
     if (/.*全体.*/.test(e.msg)) e.user_id = 0
@@ -85,8 +75,8 @@ export class BiliDynamic extends plugin {
       return this.reply(`[LinkFlow] UID ${uid} 查询失败，请确认UID正确且Bot已登录`)
     }
 
-    // 解析类型过滤
-    const types = parseTypeKeywords(e.msg)
+    // 固定订阅：视频、图文、文章
+    const types = ['视频', '图文', '文章']
 
     DynamicSubStore.add({
       uid,
@@ -97,10 +87,9 @@ export class BiliDynamic extends plugin {
       types,
     })
 
-    const typeHint = types.length > 0 ? `（仅${types.join('/')}）` : ''
     const replyParts = []
     if (face) replyParts.push(segment.image(face))
-    replyParts.push(`${name} (UID: ${uid}) 动态订阅成功${typeHint}`)
+    replyParts.push(`${name} (UID: ${uid}) 动态订阅成功（视频/图文/文章）`)
 
     return this.reply(replyParts)
   }

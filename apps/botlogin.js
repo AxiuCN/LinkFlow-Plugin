@@ -49,7 +49,7 @@ export class BotBiliLogin extends plugin {
             version: pluginVersion,
             yunzaiVersion,
           }, 'png')
-          this.reply([segment.at(e.user_id), '\n请用B站客户端扫码，有效期3分钟', img], false, { recallMsg: 0 })
+          this.reply([segment.at(e.user_id), '请用B站客户端扫码，有效期3分钟', img], false, { recallMsg: 0 })
         },
         // onScanned: 扫码成功提示
         () => {
