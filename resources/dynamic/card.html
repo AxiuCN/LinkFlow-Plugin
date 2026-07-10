@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta http-equiv="content-type" content="text/html;charset=utf-8"/>
+  <link rel="shortcut icon" href="#"/>
+  <link rel="stylesheet" type="text/css" href="{{_res_path}}/common/common.css"/>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      transform: scale(1);
+      width: 600px;
+      margin: 0;
+      padding: 0;
+      background: transparent;
+    }
+    .container {
+      width: 600px !important;
+      padding: 24px 20px 16px 20px !important;
+      background: rgba(30, 35, 45, 0.95);
+      border-radius: 16px;
+      color: #e0e0e0;
+    }
+    /* 账号区 */
+    .account {
+      display: flex;
+      align-items: center;
+      margin-bottom: 12px;
+    }
+    .account .avatar {
+      width: 48px;
+      height: 48px;
+      border-radius: 50%;
+      border: 2px solid rgba(255,255,255,0.12);
+      flex-shrink: 0;
+    }
+    .account .info {
+      margin-left: 10px;
+      flex: 1;
+    }
+    .account .name {
+      font-size: 16px;
+      font-weight: bold;
+      color: #fb7299;
+    }
+    .account .meta {
+      font-size: 11px;
+      color: #99a2aa;
+      margin-top: 2px;
+    }
+    .account .meta .badge {
+      display: inline-block;
+      padding: 1px 8px;
+      border-radius: 4px;
+      font-size: 11px;
+      margin-right: 6px;
+    }
+    .badge-视频 { background: rgba(251, 114, 153, 0.2); color: #fb7299; }
+    .badge-图文 { background: rgba(102, 187, 106, 0.2); color: #66bb6a; }
+    .badge-文章 { background: rgba(66, 165, 245, 0.2); color: #42a5f5; }
+    .badge-直播 { background: rgba(239, 83, 80, 0.2); color: #ef5350; }
+    .badge-转发 { background: rgba(171, 141, 112, 0.2); color: #ab8d70; }
+    /* 内容区 */
+    .content {
+      margin-bottom: 12px;
+      line-height: 1.7;
+    }
+    .content .title {
+      font-size: 17px;
+      font-weight: bold;
+      color: #e8e8e8;
+      margin-bottom: 8px;
+      display: -webkit-box;
+      -webkit-line-clamp: 3;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+    }
+    .content .body-text {
+      font-size: 14px;
+      color: #bbb;
+      word-break: break-all;
+    }
+    .content .body-text a {
+      color: #42a5f5;
+      text-decoration: none;
+    }
+    .content .body-text .topic {
+      color: #fb7299;
+    }
+    .content .body-text .at {
+      color: #6eb5ff;
+    }
+    .content .body-text .emoji {
+      width: 22px;
+      height: 22px;
+      vertical-align: -4px;
+    }
+    /* 封面 */
+    .cover-img {
+      width: 100%;
+      max-height: 320px;
+      object-fit: cover;
+      border-radius: 8px;
+      margin: 8px 0;
+    }
+    /* 图片网格 */
+    .pics-grid {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 4px;
+      margin: 8px 0;
+    }
+    .pics-grid.single { }
+    .pics-grid.multi { }
+    .pics-grid .pic-item {
+      object-fit: cover;
+      border-radius: 6px;
+    }
+    .pics-grid.single .pic-item { width: 100%; max-height: 320px; }
+    .pics-grid.double .pic-item { width: calc(50% - 2px); height: 200px; }
+    .pics-grid.triple .pic-item { width: calc(33.33% - 3px); height: 180px; }
+    .pics-grid.quad .pic-item { width: calc(50% - 2px); height: 150px; }
+    .pics-grid.many .pic-item { width: calc(33.33% - 3px); height: 140px; }
+    /* 转发区 */
+    .forward-card {
+      margin-top: 10px;
+      padding: 12px;
+      background: rgba(255,255,255,0.04);
+      border-radius: 8px;
+      border-left: 3px solid rgba(251, 114, 153, 0.4);
+    }
+    .forward-card .forward-label {
+      font-size: 11px;
+      color: #fb7299;
+      margin-bottom: 6px;
+    }
+    .forward-card .account {
+      margin-bottom: 6px;
+    }
+    .forward-card .account .avatar {
+      width: 32px;
+      height: 32px;
+    }
+    .forward-card .account .name {
+      font-size: 14px;
+    }
+    /* Footer */
+    .footer-line {
+      text-align: center;
+      color: #6b7b8d;
+      font-size: 10px;
+      margin-top: 12px;
+      padding-top: 8px;
+      border-top: 1px solid rgba(255,255,255,0.06);
+    }
+    .copyright { display: none; }
+  </style>
+</head>
+<body>
+  <div class="container" id="container">
+    <!-- UP主信息 -->
+    <div class="account">
+      {{if upFace}}<img class="avatar" src="{{upFace}}" alt=""/>{{/if}}
+      <div class="info">
+        <div class="name">{{upName || '未知UP主'}}</div>
+        <div class="meta">
+          <span class="badge badge-{{typeLabel}}">{{typeLabel}}</span>
+          <span>{{time}}</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- 内容 -->
+    <div class="content">
+      {{if title}}
+      <div class="title">{{title}}</div>
+      {{/if}}
+      {{if content}}
+      <div class="body-text">{{@content}}</div>
+      {{/if}}
+    </div>
+
+    <!-- 封面/视频封面 -->
+    {{if !pics || pics.length === 0}}
+      {{if cover}}
+      <img class="cover-img" src="{{cover}}" alt=""/>
+      {{/if}}
+    {{/if}}
+
+    <!-- 图片网格 -->
+    {{if pics && pics.length > 0}}
+      {{set gridClass = pics.length === 1 ? 'single' : (pics.length === 2 ? 'double' : (pics.length === 3 ? 'triple' : (pics.length === 4 ? 'quad' : 'many')))}}
+      <div class="pics-grid {{gridClass}}">
+        {{each pics pic}}
+        <img class="pic-item" src="{{pic.url}}" alt=""/>
+        {{/each}}
+      </div>
+    {{/if}}
+
+    <!-- 转发 -->
+    {{if hasForward && forward}}
+    <div class="forward-card">
+      <div class="forward-label">转发动态</div>
+      {{if forward.upFace}}<img class="avatar" src="{{forward.upFace}}" alt="" style="width:32px;height:32px;border-radius:50%;border:1px solid rgba(255,255,255,0.1);"/>{{/if}}
+      <span style="font-size:14px;font-weight:bold;color:#fb7299;margin-left:6px;">{{forward.upName || ''}}</span>
+      <span style="font-size:11px;color:#99a2aa;margin-left:6px;">{{forward.typeLabel}} · {{forward.time}}</span>
+      {{if forward.title}}<div style="font-size:15px;font-weight:bold;color:#e0e0e0;margin-top:6px;">{{forward.title}}</div>{{/if}}
+      {{if forward.content}}<div style="font-size:13px;color:#bbb;margin-top:4px;line-height:1.6;">{{@forward.content}}</div>{{/if}}
+      {{if forward.cover && !forward.pics.length}}<img class="cover-img" src="{{forward.cover}}" alt="" style="margin-top:6px;"/>{{/if}}
+      {{if forward.pics.length > 0}}
+      <div style="display:flex;flex-wrap:wrap;gap:3px;margin-top:6px;">
+        {{each forward.pics fp}}<img src="{{fp.url}}" alt="" style="object-fit:cover;border-radius:4px;max-width:120px;max-height:120px;"/>{{/each}}
+      </div>
+      {{/if}}
+    </div>
+    {{/if}}
+
+    <div class="footer-line">Created By Yunzai-Bot {{yunzaiVersion}} &amp; LinkFlow-Plugin {{version}}</div>
+  </div>
+</body>
+</html>

@@ -4,11 +4,19 @@ import {
   NAV_URL,
   MISSION_INFO_URL,
   MISSION_RECEIVE_URL,
+  FEED_SPACE_URL,
+  SPACE_ACC_INFO_URL,
   DEFAULT_USER_AGENT,
+  CHROME_USER_AGENT,
   WEB_LOCATION,
+  DYNAMIC_WEB_LOCATION,
   MISSION_INFO_RETRY_SECONDS,
   MISSION_INFO_RETRY_INTERVAL,
   MIXIN_KEY_ENC_TAB,
+  DM_IMG_LIST,
+  DM_IMG_STR,
+  DM_COVER_IMG_STR,
+  DM_IMG_INTER,
 } from '../components/constants.js'
 
 /** Cookie 失效错误 */
@@ -42,26 +50,55 @@ class BiliClient {
   /**
    * @param {object} cookies — 必须含 SESSDATA、bili_jct
    * @param {number} [timeout=10] 请求超时秒数
+   * @param {boolean} [useBotCookie=false] — true 时忽略 cookies 参数，从 BotCookie 加载
    */
-  constructor(cookies, timeout = 10) {
-    this.cookies = cookies
+  constructor(cookies, timeout = 10, useBotCookie = false) {
+    this._useBotCookie = useBotCookie
+    if (useBotCookie) {
+      this.cookies = null      // 延迟加载，调用 _resolveCookies() 时再读
+      this._cookieStr = null
+    } else {
+      this.cookies = cookies
+      this._cookieStr = null
+    }
     this.timeout = timeout * 1000
     this._wbiKeys = null
+    this._userAgent = useBotCookie ? CHROME_USER_AGENT : DEFAULT_USER_AGENT
+  }
+
+  /** 解析最终 cookies 对象和 cookie 字符串（bot 模式延迟加载） */
+  async _resolveCookies() {
+    if (this._cookieStr) return { cookies: this.cookies, str: this._cookieStr }
+    if (this._useBotCookie) {
+      const { getBotCookieString } = await import('../modules/BotCookie.js')
+      const str = await getBotCookieString()
+      if (!str) throw new BiliCookieInvalidError('[Cookie] Bot B站未登录')
+      // 解析为 cookies 对象
+      const obj = {}
+      str.split(';').forEach(p => {
+        const m = p.trim().match(/^([^=]+)=(.+)$/)
+        if (m) obj[m[1]] = m[2]
+      })
+      this.cookies = obj
+      this._cookieStr = str
+    }
+    return { cookies: this.cookies, str: this._cookieStr || formatCookiesText(this.cookies) }
   }
 
   get cookieHeader() {
-    return formatCookiesText(this.cookies)
+    return this._cookieStr || formatCookiesText(this.cookies)
   }
 
   // ========== 底层请求 ==========
 
   async _get(url, headers = {}) {
+    const { str: cookieStr } = await this._resolveCookies()
     const res = await fetch(url, {
       method: 'GET',
       headers: {
-        'User-Agent': DEFAULT_USER_AGENT,
+        'User-Agent': this._userAgent,
         Referer: 'https://www.bilibili.com/',
-        Cookie: this.cookieHeader,
+        Cookie: cookieStr || this.cookieHeader,
         ...headers,
       },
       signal: AbortSignal.timeout(this.timeout),
@@ -70,12 +107,13 @@ class BiliClient {
   }
 
   async _post(url, body, headers = {}) {
+    const { str: cookieStr } = await this._resolveCookies()
     const res = await fetch(url, {
       method: 'POST',
       headers: {
-        'User-Agent': DEFAULT_USER_AGENT,
+        'User-Agent': this._userAgent,
         Referer: 'https://www.bilibili.com/',
-        Cookie: this.cookieHeader,
+        Cookie: cookieStr || this.cookieHeader,
         'Content-Type': 'application/x-www-form-urlencoded',
         ...headers,
       },
@@ -307,6 +345,45 @@ class BiliClient {
     }
 
     return { success: false, code, message, cdkey: '' }
+  }
+
+  // ========== 动态订阅相关 ==========
+
+  /**
+   * 获取 UP 主动态列表（WBI 签名 + dm_img 反爬参数）
+   * API: GET /x/polymer/web-dynamic/v1/feed/space
+   * @param {string} uid - UP 主 UID
+   * @param {string} [offset=''] - 分页偏移
+   * @returns {Promise<object>} API 原始响应
+   */
+  async getDynamicList(uid, offset = '') {
+    await this._resolveCookies()
+    const params = {
+      host_mid: String(uid),
+      offset,
+      timezone_offset: '-480',
+      platform: 'web',
+      features: 'itemOpusStyle,listOnlyfans,opusBigCover,onlyfansVote,decorationCard,forwardListHidden,ugcDelete,onlyfansQaCard',
+      web_location: DYNAMIC_WEB_LOCATION,
+      dm_img_list: DM_IMG_LIST,
+      dm_img_str: DM_IMG_STR,
+      dm_cover_img_str: DM_COVER_IMG_STR,
+      dm_img_inter: DM_IMG_INTER,
+    }
+    const query = await this.getWebSign(params)
+    return this._get(`${FEED_SPACE_URL}?${query}`)
+  }
+
+  /**
+   * 获取 UP 用户信息（昵称、头像）
+   * API: GET /x/space/wbi/acc/info (WBI 签名)
+   * @param {string} uid - UP 主 UID
+   * @returns {Promise<object>} API 原始响应
+   */
+  async getUserInfo(uid) {
+    await this._resolveCookies()
+    const query = await this.getWebSign({ mid: String(uid) })
+    return this._get(`${SPACE_ACC_INFO_URL}?${query}`)
   }
 }
 

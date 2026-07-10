@@ -12,6 +12,24 @@ export const helpList = [
     ]
   },
   {
+    group: 'B站账号（机器人）',
+    auth: 'master',
+    list: [
+      { icon: 5, title: '#机器人b站登录', desc: '扫码绑定Bot公共B站账号（动态/解析用）' },
+      { icon: 80, title: '#机器人b站状态', desc: '查看Bot B站登录态' },
+      { icon: 92, title: '#机器人b站登出', desc: '登出并清除Bot Cookie' },
+    ]
+  },
+  {
+    group: '动态订阅',
+    list: [
+      { icon: 71, title: '#订阅b站UP动态 <uid> [类型]', desc: '订阅UP主动态推送，可选类型：视频/图文/文章/转发/直播' },
+      { icon: 92, title: '#取消b站UP动态 <uid>', desc: '取消UP动态订阅' },
+      { icon: 80, title: '#动态订阅列表', desc: '查看当前群/个人动态订阅' },
+      { icon: 74, title: '前缀', desc: '指令前加"全体"@全体成员，"匿名"不@自己' },
+    ]
+  },
+  {
     group: '直播订阅',
     list: [
       { icon: 71, title: '#订阅b站UP直播 <uid>', desc: '订阅UP主开播推送（按UID）' },
@@ -52,9 +70,11 @@ export const helpList = [
     group: 'TIP',
     list: [
       { icon: 1, title: 'Step 1', desc: '#b站登录 → 绑定个人B站账号（激励用）' },
-      { icon: 75, title: 'Step 2', desc: '#激励创建配置 → 生成20槽位个人配置' },
-      { icon: 87, title: 'Step 3', desc: '#激励添加 <序号> <链接> 填入活动链接' },
+      { icon: 5, title: 'Step 2', desc: '#机器人b站登录 → 绑定Bot B站账号（动态/直播用）' },
+      { icon: 75, title: 'Step 3', desc: '#激励创建配置 → 生成20槽位个人配置' },
+      { icon: 87, title: 'Step 4', desc: '#激励添加 <序号> <链接> 填入活动链接' },
       { icon: 80, title: '关于槽位', desc: '1-10直播，11-20看播。按序号从小到大领取' },
+      { icon: 71, title: '关于动态', desc: '#订阅b站UP动态 <uid> 订阅后自动轮询推送UP主动态' },
       { icon: 74, title: '关于直播', desc: '#订阅b站UP直播 <uid> 订阅后自动轮询推送开播' },
       { icon: 69, title: '关于手动抢', desc: '#领取激励 可手动指定线程数和间隔抢激励' },
     ]
