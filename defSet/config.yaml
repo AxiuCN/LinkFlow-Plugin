@@ -5,7 +5,7 @@
 
 # ---------- 全局设置 ----------
 global:
-  # 总开关：关闭后除 #机器人b站登录 / #B站登录 / #B站状态 外所有功能停用
+  # 总开关：关闭后除 #B站登录 / #B站状态 外所有功能停用
   enabled: ${global_enabled}
 
 # ---------- B站账号登录 ----------
@@ -13,84 +13,8 @@ login:
   # 扫码登录轮询超时（秒）
   pollTimeout: ${login_pollTimeout}
 
-# ---------- 外部工具 ----------
-tool:
-  # 自动安装缺失的工具
-  autoInstall: ${tool_autoInstall}
-
-  # ===== BBDown（B站下载）=====
-  bbdown:
-    enabled: ${tool_bbdown_enabled}
-    # 是否使用 aria2 加速下载
-    useAria2: ${tool_bbdown_useAria2}
-    # 画质优先级（逗号分隔多值降序），留空由BBDown自动选择，默认720P
-    resolution: ${tool_bbdown_resolution}
-
-  # ===== ffmpeg（音视频合并）=====
-  ffmpeg:
-    enabled: ${tool_ffmpeg_enabled}
-
-  # ===== aria2（多线程加速）=====
-  aria2:
-    enabled: ${tool_aria2_enabled}
-
-  # ===== media_parser（非B站解析下载）=====
-  mediaParser:
-    enabled: ${tool_mediaParser_enabled}
-    # Python 可执行文件路径
-    pythonPath: ${tool_mediaParser_pythonPath}
-    # HTTP 服务端口
-    port: ${tool_mediaParser_port}
-
-# ---------- 链接解析（apps/linkparse.js）----------
-linkparse:
-  # 解析总开关
-  enabled: ${linkparse_enabled}
-
-  # ===== 10平台独立开关 =====
-  bilibili:
-    enabled: ${linkparse_bilibili_enabled}
-  douyin:
-    enabled: ${linkparse_douyin_enabled}
-  tiktok:
-    enabled: ${linkparse_tiktok_enabled}
-  kuaishou:
-    enabled: ${linkparse_kuaishou_enabled}
-  weibo:
-    enabled: ${linkparse_weibo_enabled}
-  xiaohongshu:
-    enabled: ${linkparse_xiaohongshu_enabled}
-  xianyu:
-    enabled: ${linkparse_xianyu_enabled}
-  toutiao:
-    enabled: ${linkparse_toutiao_enabled}
-  xiaoheihe:
-    enabled: ${linkparse_xiaoheihe_enabled}
-  twitter:
-    enabled: ${linkparse_twitter_enabled}
-
-  # ===== 下载设置 =====
-  download:
-    # 下载总开关
-    enabled: ${linkparse_download_enabled}
-    # 单个视频下载超时（秒）
-    timeout: ${linkparse_download_timeout}
-    # 最大文件大小（MB），超过不下载
-    maxSize: ${linkparse_download_maxSize}
-    # 群白名单独立管理于 config/linkparse_config/whitelist.yaml
-    # 锅巴中编辑，或群内发送 #开启解析 / #关闭解析
-
-# ---------- 订阅推送 ----------
+# ---------- 直播推送 ----------
 subscribe:
-
-  # ===== 动态订阅 =====
-  dynamic:
-    # 动态推送总开关
-    enabled: ${subscribe_dynamic_enabled}
-    # 轮询 cron（秒 分 时 日 月 周），默认每23分钟
-    cron: ${subscribe_dynamic_cron}
-    # 动态时间窗口（秒），超过此时间的动态不推送
-    timeRange: ${subscribe_dynamic_timeRange}
 
   # ===== 直播订阅 =====
   live:

@@ -52,46 +52,15 @@ ensureConfig('incentive_config.yaml')
 // 确保 data 及运行时子目录存在
 const dataDir = path.join(pluginRoot, 'data')
 fs.mkdirSync(dataDir, { recursive: true })
-const dirs = ['accounts', 'bot_accounts', 'subscribe', 'download_cache']
+const dirs = ['accounts', 'subscribe']
 for (const d of dirs) {
   fs.mkdirSync(path.join(dataDir, d), { recursive: true })
 }
 
-// 确保链接解析白名单目录存在，从 .example 复制
-  const lpWhitelistDir = path.join(configDir, 'linkparse_config')
-  fs.mkdirSync(lpWhitelistDir, { recursive: true })
-  ensureConfig(path.join('linkparse_config', 'whitelist.yaml'))
-
-  // 确保激励运行时目录存在，白名单从 .example 复制
+// 确保激励运行时目录存在，白名单从 .example 复制
 const whitelistDir = path.join(configDir, 'incentive_config')
 fs.mkdirSync(whitelistDir, { recursive: true })
 ensureConfig(path.join('incentive_config', 'whitelist.yaml'))
-
-// ---- 异步初始化 tool / media_parser（不阻塞启动） ----
-setImmediate(async () => {
-  try {
-    const { getPluginConfig } = await import('./components/config.js')
-    const cfg = getPluginConfig()
-    const toolCfg = cfg?.tool || {}
-
-    // 工具自动安装
-    if (toolCfg.autoInstall !== false) {
-      const { toolManager } = await import('./components/ToolManager.js')
-      await toolManager.ensureAll(toolCfg)
-    }
-
-    // media_parser 服务启动
-    if (toolCfg.mediaParser?.enabled !== false) {
-      const { mediaParser } = await import('./model/MediaParser.js')
-      const { ffmpegPath } = await import('./components/constants.js')
-      const pythonPath = toolCfg.mediaParser?.pythonPath || undefined
-      const port = toolCfg.mediaParser?.port || undefined
-      await mediaParser.start({ pythonPath, port })
-    }
-  } catch (e) {
-    logger.error('[LinkFlow] 工具/服务初始化失败:', e)
-  }
-})
 
 const readdir = promisify(fs.readdir)
 

@@ -7,10 +7,7 @@ import path from 'node:path'
 import YAML from 'yaml'
 import { pluginRoot } from '../components/constants.js'
 import { loadUserConfig, saveUserConfig, listUserConfigs, MAX_SLOTS } from '../modules/incentive/Config.js'
-import { loadWhitelist, saveWhitelist } from '../modules/linkparse/Whitelist.js'
 import * as mainMod from './main.js'
-import * as linkparseMod from './linkparse.js'
-import * as toolMod from './tool.js'
 import * as subscribeMod from './subscribe.js'
 import * as incentiveMod from './incentive.js'
 
@@ -20,8 +17,6 @@ const defaultConfigPath = path.join(pluginRoot, 'defSet', 'config.yaml')
 /** 合并所有模块的默认值 */
 const allDefaults = {
   ...mainMod.getDefaults(),
-  ...linkparseMod.getDefaults(),
-  ...toolMod.getDefaults(),
   ...subscribeMod.getDefaults(),
   ...incentiveMod.getDefaults(),
 }
@@ -55,10 +50,7 @@ function parseYaml(filePath) {
 
 /**
  * 递归扁平化锅巴传入的数据
- * 锅巴可能传入嵌套对象 { linkparse: { bilibili: { enabled: true } } }
- * 也可能传入扁平的 { 'linkparse.bilibili.enabled': true }
- * 统一转为 underscore 分隔的扁平 key: { linkparse_bilibili_enabled: true }
- *
+ * 统一转为 underscore 分隔的扁平 key
  * @param {object} obj — 锅巴传入的 data
  * @param {string} [prefix=''] — 递归前缀
  * @returns {object} 扁平化后的键值对
@@ -81,15 +73,12 @@ function flattenForTemplate(obj, prefix = '') {
 
 /**
  * 从扁平或嵌套 data 中安全取值
- * 先尝试 flat key（如 'incentive.users'），再尝试 nested path
  * @param {object} data
  * @param {string} flatKey — 点分隔的扁平键名
  * @returns {any}
  */
 function getNested(data, flatKey) {
-  // 优先 flat 取值（锅巴常见格式）
   if (data[flatKey] !== undefined) return data[flatKey]
-  // 嵌套取值
   const parts = flatKey.split('.')
   let cur = data
   for (const p of parts) {
@@ -104,7 +93,7 @@ export function supportGuoba() {
     pluginInfo: {
       name: 'linkflow-plugin',
       title: 'LinkFlow-Plugin',
-      description: '流媒体聚合解析+B站综合功能插件，支持10平台链接解析下载、UP主动态/直播订阅推送、B站激励计划抢奖励',
+      description: 'B站综合功能插件，支持UP主直播订阅推送、B站激励计划抢奖励',
       author: ['阿修Axiu'],
       authorLink: ['https://github.com/AxiuCN'],
       link: 'https://github.com/AxiuCN/LinkFlow-Plugin',
@@ -118,8 +107,6 @@ export function supportGuoba() {
     configInfo: {
       schemas: [
         ...mainMod.getSchema(),
-        ...linkparseMod.getSchema(),
-        ...toolMod.getSchema(),
         ...subscribeMod.getSchema(),
         ...incentiveMod.getSchema(),
         // ==================== 用户配置列表 ====================
@@ -153,13 +140,7 @@ export function supportGuoba() {
         const userCfg = parseYaml(configPath)
         const claim = userCfg.incentive?.claim || {}
         const watch = userCfg.incentive?.watch || {}
-        const linkparse = userCfg.linkparse || {}
-        const dl = linkparse.download || {}
-        const tool = userCfg.tool || {}
-        const tbbdown = tool.bbdown || {}
-        const tmediaParser = tool.mediaParser || {}
         const subscribe = userCfg.subscribe || {}
-        const sdyn = subscribe.dynamic || {}
         const slive = subscribe.live || {}
         const spush = subscribe.push || {}
 
@@ -177,48 +158,12 @@ export function supportGuoba() {
         const dailyLinks = userCfg.incentive?.dailyTaskLinks || []
         const liveCron = userCfg.incentive?.liveCron || userCfg.incentive?.claimCron
 
-        // 群白名单 — 从独立文件读取
-        const whitelist = loadWhitelist()
-
         return {
           // 全局
           'global.enabled': userCfg.global?.enabled ?? true,
           'login.pollTimeout': userCfg.login?.pollTimeout ?? 180,
 
-          // 工具管理
-          'tool.autoInstall': tool.autoInstall ?? true,
-          'tool.bbdown.enabled': tbbdown.enabled ?? true,
-          'tool.bbdown.useAria2': tbbdown.useAria2 ?? false,
-          'tool.bbdown.resolution': tbbdown.resolution ? tbbdown.resolution.split(',').filter(Boolean) : [],
-          'tool.ffmpeg.enabled': tool.ffmpeg?.enabled ?? true,
-          'tool.aria2.enabled': tool.aria2?.enabled ?? true,
-          'tool.mediaParser.enabled': tmediaParser.enabled ?? true,
-          'tool.mediaParser.pythonPath': tmediaParser.pythonPath ?? 'python',
-          'tool.mediaParser.port': tmediaParser.port ?? 19810,
-
-          // 链接解析
-          'linkparse.enabled': linkparse.enabled ?? true,
-          'linkparse.bilibili.enabled': linkparse.bilibili?.enabled ?? true,
-          'linkparse.douyin.enabled': linkparse.douyin?.enabled ?? true,
-          'linkparse.tiktok.enabled': linkparse.tiktok?.enabled ?? true,
-          'linkparse.kuaishou.enabled': linkparse.kuaishou?.enabled ?? true,
-          'linkparse.weibo.enabled': linkparse.weibo?.enabled ?? true,
-          'linkparse.xiaohongshu.enabled': linkparse.xiaohongshu?.enabled ?? true,
-          'linkparse.xianyu.enabled': linkparse.xianyu?.enabled ?? true,
-          'linkparse.toutiao.enabled': linkparse.toutiao?.enabled ?? true,
-          'linkparse.xiaoheihe.enabled': linkparse.xiaoheihe?.enabled ?? true,
-          'linkparse.twitter.enabled': linkparse.twitter?.enabled ?? true,
-          'linkparse.download.enabled': dl.enabled ?? true,
-          'linkparse.download.timeout': dl.timeout ?? 600,
-          'linkparse.download.maxSize': dl.maxSize ?? 100,
-          // 群白名单
-          'linkparse.whitelist.enabled': whitelist.enabled ?? false,
-          'linkparse.download.allowGroups': (whitelist.groups || []).map(g => typeof g === 'string' ? Number(g) : g),
-
-          // 订阅
-          'subscribe.dynamic.enabled': sdyn.enabled ?? true,
-          'subscribe.dynamic.cron': sdyn.cron ?? '0 */23 * * * ?',
-          'subscribe.dynamic.timeRange': sdyn.timeRange ?? 7200,
+          // 直播推送
           'subscribe.live.enabled': slive.enabled ?? true,
           'subscribe.live.cron': slive.cron ?? '10 * * * * ?',
           'subscribe.live.endPush': slive.endPush ?? true,
@@ -254,13 +199,11 @@ export function supportGuoba() {
           // 1. 扁平化锅巴数据（兼容嵌套和扁平两种格式）
           const flatData = flattenForTemplate(data)
 
-          // 2. 合并默认值 + 用户值（key 统一 dot→underscore 以匹配模板变量 ${xxx_yyy}）
+          // 2. 合并默认值 + 用户值
           const values = { ...allDefaults }
           for (let [key, val] of Object.entries(flatData)) {
             key = key.replace(/\./g, '_')
-            // 跳过 GSubForm 数组字段（单独处理）
             if (key === 'incentive_users' || key.startsWith('incentive_users_')) continue
-            if (key === 'linkparse_download_allowGroups' || key.startsWith('linkparse_download_allowGroups_')) continue
             values[key] = val
           }
 
@@ -270,35 +213,12 @@ export function supportGuoba() {
           if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true })
           fs.writeFileSync(configPath, content, 'utf8')
 
-          // 4. 保存激励用户配置（兼容嵌套/flat）
+          // 4. 保存激励用户配置
           const users = getNested(data, 'incentive.users') || []
           for (const entry of users) {
             if (!entry.qq) continue
             const links = Array.from({ length: MAX_SLOTS }, (_, i) => entry[`link${i + 1}`] || '')
             saveUserConfig(String(entry.qq), { links, notifyGroup: entry.notifyGroup || 0 })
-          }
-
-          // 5. 保存群白名单到独立文件（兼容嵌套/flat）
-          const whitelistEnabled = getNested(data, 'linkparse.whitelist.enabled')
-          if (whitelistEnabled !== undefined) {
-            const wl = loadWhitelist()
-            wl.enabled = whitelistEnabled
-            saveWhitelist(wl)
-          }
-          const allowGroups = getNested(data, 'linkparse.download.allowGroups')
-          if (allowGroups !== undefined) {
-            const wl = loadWhitelist()
-            if (Array.isArray(allowGroups) && allowGroups.length > 0) {
-              // GSelectGroup → number[]；兼容旧 GSubForm [{ groupId }] 格式
-              if (typeof allowGroups[0] === 'object') {
-                wl.groups = allowGroups.map(g => g.groupId || g.id || '').filter(Boolean).map(String)
-              } else {
-                wl.groups = allowGroups.filter(Boolean).map(String)
-              }
-            } else {
-              wl.groups = []
-            }
-            saveWhitelist(wl)
           }
 
           return Result.ok({}, '保存成功~')

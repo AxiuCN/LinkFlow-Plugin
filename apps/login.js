@@ -1,12 +1,9 @@
-import path from 'node:path'
-import fs from 'node:fs'
-import { startLogin, saveBotCookies, saveAccountCookies, loadAccountCookies, listBoundAccounts } from '../model/bilibili/auth.js'
-import { login as bbdownLogin } from '../model/BBDown.js'
-import { toolManager } from '../components/ToolManager.js'
+import { startLogin } from '../modules/BiliLogin.js'
+import { saveAccountCookies, loadAccountCookies, listBoundAccounts } from '../components/Storage.js'
 import { getPluginConfig } from '../components/config.js'
 import { render } from '../components/render.js'
 import { pluginVersion, yunzaiVersion } from '../components/pluginVersion.js'
-import { NAV_URL, DEFAULT_USER_AGENT, bbdownPath, LOGIN_POLL_TIMEOUT_SECONDS } from '../components/constants.js'
+import { NAV_URL, DEFAULT_USER_AGENT, LOGIN_POLL_TIMEOUT_SECONDS } from '../components/constants.js'
 
 /**
  * 从配置读取扫码登录超时（秒）
@@ -28,89 +25,18 @@ export class LinkFlowLogin extends plugin {
   constructor() {
     super({
       name: '[LinkFlow]账号登录',
-      dsc: 'B站扫码登录（机器人公共/个人）+ 工具环境初始化',
+      dsc: 'B站扫码登录（激励领取用）',
       event: 'message',
       priority: 500,
       rule: [
-        { reg: /^#机器人[bB]站登录$/i, fnc: 'cmdBotLogin' },
         { reg: /^#[bB]站登录$/i, fnc: 'cmdPersonalLogin' },
         { reg: /^#[bB]站状态$/i, fnc: 'cmdStatus' },
-        { reg: /^#初始化工具环境$/i, fnc: 'cmdInitTools' },
       ],
     })
   }
 
   /**
-   * #机器人b站登录 — BBDown 扫码登录 + 同步 Cookie 到机器人账号
-   *
-   * BBDown 负责生码/扫码，成功后自动提取 SESSDATA 等字段存入
-   * data/bot_accounts/bilibili.json，保留机器人账号体系供激励/下载等模块使用。
-   *
-   * 采用 fire-and-forget：函数立即返回不阻塞，
-   * 二维码生成后通过 HTML 渲染发送，登录完成后异步推送成功/失败消息。
-   */
-  async cmdBotLogin(e) {
-    if (!e.isMaster) {
-      return this.reply('[LinkFlow] 仅 bot 主人可绑定机器人公共账号')
-    }
-
-    const key = `bot_${e.user_id}`
-    const last = cooldowns.get(key)
-    if (last && Date.now() - last < 60000) {
-      return this.reply('[LinkFlow] 操作太频繁，请1分钟后再试')
-    }
-    cooldowns.set(key, Date.now())
-
-    // 检查 BBDown 是否已安装
-    if (!fs.existsSync(bbdownPath)) {
-      return this.reply('[LinkFlow] BBDown 未安装，请先发送 #初始化工具环境')
-    }
-
-    const loginTimeout = getPollTimeoutSeconds()
-
-    // fire-and-forget: 不 await，登录在后台运行
-    bbdownLogin(e, {
-      timeout: loginTimeout * 1000,
-      onQR: async (qrPath) => {
-        try {
-          // 读二维码文件 → base64 → HTML 渲染
-          const qrBuffer = fs.readFileSync(qrPath)
-          const qrBase64 = qrBuffer.toString('base64')
-          const imgSrc = `data:image/png;base64,${qrBase64}`
-
-          const img = await render('qrCode', 'index', {
-            url: '',
-            imgSrc,
-            qq: e.user_id,
-            version: pluginVersion,
-            yunzaiVersion,
-          }, 'png')
-
-          await this.reply([segment.at(e.user_id), img], false, { recallMsg: 30 })
-        } catch (err) {
-          logger?.error(`[LinkFlow] 发送登录二维码失败: ${err.message}`)
-          // 降级：直接发图片
-          await this.reply([
-            segment.at(e.user_id),
-            '\n[LinkFlow] 请用 B站 APP 扫码登录机器人账号\n',
-            segment.image('file://' + qrPath),
-          ], false, { recallMsg: 30 })
-        }
-      },
-    }).then(success => {
-      if (success) {
-        this.reply('[LinkFlow] 机器人公共 B站账号绑定成功 ✓')
-      } else {
-        this.reply('[LinkFlow] 机器人登录失败')
-      }
-    }).catch(err => {
-      this.reply(`[LinkFlow] 机器人登录失败: ${err.message}`)
-    })
-  }
-
-  /**
    * #B站登录 — 个人扫码登录（激励领取用）
-   * 保留 B站 QR API 方式，独立于 BBDown
    */
   async cmdPersonalLogin(e) {
     const last = cooldowns.get(e.user_id)
@@ -169,32 +95,5 @@ export class LinkFlowLogin extends plugin {
     } catch {}
 
     this.reply('[LinkFlow] B站登录已过期，请重新发送 #B站登录')
-  }
-
-  /**
-   * #初始化工具环境 — 自动检查并安装 BBDown / ffmpeg / aria2 / media_parser
-   */
-  async cmdInitTools(e) {
-    if (!e.isMaster) {
-      return this.reply('[LinkFlow] 仅 bot 主人可初始化工具环境')
-    }
-
-    const config = getPluginConfig()
-    const toolCfg = config?.tool || {}
-
-    await this.reply('[LinkFlow] 正在检查工具环境 ...')
-
-    try {
-      await toolManager.ensureAll(toolCfg, { checkUpdate: true })
-
-      const labels = { bbdown: 'BBDown', ffmpeg: 'ffmpeg', aria2: 'aria2', mediaParser: 'media_parser' }
-      const status = Object.entries(labels).map(
-        ([name, display]) => `${toolManager.isInstalled(name) ? '✓' : '✗'} ${display}`
-      )
-
-      await this.reply(`[LinkFlow] 工具环境检查完成:\n${status.join('\n')}`)
-    } catch (err) {
-      await this.reply(`[LinkFlow] 工具初始化失败: ${err.message}`)
-    }
   }
 }

@@ -1,8 +1,7 @@
 /**
- * guoba/subscribe.js — 订阅推送配置（动态 + 直播合并）
+ * guoba/subscribe.js — 直播推送配置
  *
  * 对应 defSet/config.yaml 模板变量:
- *   subscribe_dynamic_enabled, subscribe_dynamic_cron, subscribe_dynamic_timeRange,
  *   subscribe_live_enabled, subscribe_live_cron, subscribe_live_endPush,
  *   subscribe_push_forward, subscribe_push_rePush, subscribe_push_sleep
  */
@@ -13,9 +12,6 @@ const configPath = path.join(pluginRoot, 'config', 'config.yaml')
 const defaultConfigPath = path.join(pluginRoot, 'defSet', 'config.yaml')
 
 const defaults = {
-  subscribe_dynamic_enabled: 'true',
-  subscribe_dynamic_cron: '0 */23 * * * ?',
-  subscribe_dynamic_timeRange: '7200',
   subscribe_live_enabled: 'true',
   subscribe_live_cron: '10 * * * * ?',
   subscribe_live_endPush: 'true',
@@ -26,40 +22,8 @@ const defaults = {
 
 export function getSchema() {
   return [
-    // ==================== 订阅推送 ====================
-    { label: '订阅推送', component: 'SOFT_GROUP_BEGIN' },
-
-    // --- 动态 ---
-    { component: 'Divider', label: '动态', componentProps: { orientation: 'left', plain: true } },
-    {
-      field: 'subscribe.dynamic.enabled',
-      label: '动态推送',
-      helpMessage: '开启后定时轮询已订阅 UP 主的新动态',
-      component: 'Switch',
-      required: true,
-      componentProps: { defaultValue: true },
-    },
-    {
-      field: 'subscribe.dynamic.cron',
-      label: '轮询频率',
-      helpMessage: 'cron 表达式（秒 分 时 日 月 周）',
-      bottomHelpMessage: '默认每 23 分钟检查一次: 0 */23 * * * ?',
-      component: 'EasyCron',
-      required: true,
-      componentProps: { showSecond: true, defaultValue: '0 */23 * * * ?' },
-    },
-    {
-      field: 'subscribe.dynamic.timeRange',
-      label: '时间窗口（秒）',
-      helpMessage: '发布时间超过此窗口的动态不推送',
-      bottomHelpMessage: '默认 7200 秒（2 小时），设为 86400 推送全天动态',
-      component: 'InputNumber',
-      required: true,
-      componentProps: { min: 60, max: 86400, defaultValue: 7200 },
-    },
-
-    // --- 直播 ---
-    { component: 'Divider', label: '直播', componentProps: { orientation: 'left', plain: true } },
+    // ==================== 直播推送 ====================
+    { label: '直播推送', component: 'SOFT_GROUP_BEGIN' },
     {
       field: 'subscribe.live.enabled',
       label: '直播推送',
