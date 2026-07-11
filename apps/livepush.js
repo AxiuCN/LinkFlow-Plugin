@@ -38,6 +38,7 @@ export class BiliLivePush extends plugin {
    * 订阅直播间（通过 room_id）
    */
   async setLivePush(e) {
+    if (!this._isEnabled()) return true
     if (/.*全体.*/.test(e.msg)) e.user_id = 0
     if (/.*匿名.*/.test(e.msg)) e.user_id = 99999
 
@@ -63,6 +64,7 @@ export class BiliLivePush extends plugin {
    * 取消订阅直播间（通过 room_id）
    */
   async delLivePush(e) {
+    if (!this._isEnabled()) return true
     if (/.*全体.*/.test(e.msg)) e.user_id = 0
     if (/.*匿名.*/.test(e.msg)) e.user_id = 99999
 
@@ -96,6 +98,7 @@ export class BiliLivePush extends plugin {
    * 订阅 UP 主（通过 uid）
    */
   async setLivePushByUid(e) {
+    if (!this._isEnabled()) return true
     if (/.*全体.*/.test(e.msg)) e.user_id = 0
     if (/.*匿名.*/.test(e.msg)) e.user_id = 99999
 
@@ -121,6 +124,7 @@ export class BiliLivePush extends plugin {
    * 取消订阅 UP 主（通过 uid）
    */
   async delLivePushByUid(e) {
+    if (!this._isEnabled()) return true
     if (/.*全体.*/.test(e.msg)) e.user_id = 0
     if (/.*匿名.*/.test(e.msg)) e.user_id = 99999
 
@@ -152,6 +156,7 @@ export class BiliLivePush extends plugin {
    * #直播订阅列表 → 无参数时发送两个选项供点击
    */
   async listLivePush(e) {
+    if (!this._isEnabled()) return true
     const isGroup = e.message_type === 'group'
     let result, key
 
@@ -212,4 +217,16 @@ export class BiliLivePush extends plugin {
     return true
   }
 
+  /** 检查直播订阅开关（兼容 subscribe.live 和旧版 livePush 路径） */
+  _isEnabled() {
+    try {
+      const cfg = getPluginConfig()
+      const enabled = cfg.subscribe?.live?.enabled ?? cfg.livePush?.enabled
+      if (enabled === false) {
+        this.reply('[LinkFlow] 直播订阅功能已关闭')
+        return false
+      }
+    } catch {}
+    return true
+  }
 }

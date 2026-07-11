@@ -22,7 +22,7 @@ export class BiliDynamic extends plugin {
     let cron = DYNAMIC_DEFAULT_CRON
     try {
       const cfg = getPluginConfig()
-      if (cfg.dynamic?.cron) cron = cfg.dynamic.cron
+      if (cfg.subscribe?.dynamic?.cron) cron = cfg.subscribe.dynamic.cron
     } catch {}
 
     this.task = {
@@ -38,6 +38,7 @@ export class BiliDynamic extends plugin {
    * 固定订阅视频+图文+文章，不含转发和直播
    */
   async cmdSubscribe(e) {
+    if (!this._isEnabled()) return true
     if (/.*全体.*/.test(e.msg)) e.user_id = 0
     if (/.*匿名.*/.test(e.msg)) e.user_id = 99999
 
@@ -98,6 +99,7 @@ export class BiliDynamic extends plugin {
    * #取消b站UP动态 <uid>
    */
   async cmdUnsubscribe(e) {
+    if (!this._isEnabled()) return true
     if (/.*全体.*/.test(e.msg)) e.user_id = 0
     if (/.*匿名.*/.test(e.msg)) e.user_id = 99999
 
@@ -137,6 +139,7 @@ export class BiliDynamic extends plugin {
    * #动态订阅列表 — 查看当前群/个人订阅
    */
   async cmdList(e) {
+    if (!this._isEnabled()) return true
     const isGroupChat = e.isGroup
 
     let result, key
@@ -196,6 +199,18 @@ export class BiliDynamic extends plugin {
     const common = await import('../../../lib/common/common.js')
     const forwardMsg = await common.default.makeForwardMsg(e, msgs)
     this.reply(forwardMsg)
+    return true
+  }
+
+  /** 检查动态订阅开关 */
+  _isEnabled() {
+    try {
+      const cfg = getPluginConfig()
+      if (cfg.subscribe?.dynamic?.enabled === false) {
+        this.reply('[LinkFlow] 动态订阅功能已关闭')
+        return false
+      }
+    } catch {}
     return true
   }
 }

@@ -42,7 +42,8 @@ class DynamicScheduler {
    */
   async poll() {
     const config = getPluginConfig()
-    if (!config.dynamic?.enabled) {
+    const dynCfg = config.subscribe?.dynamic || {}
+    if (!dynCfg.enabled) {
       logger?.info('[LinkFlow] 动态订阅已关闭，跳过')
       return
     }
@@ -50,7 +51,7 @@ class DynamicScheduler {
     // 获取 bot Cookie
     let client
     try {
-      client = new BiliClient(null, config.dynamic?.timeout || 15, true)
+      client = new BiliClient(null, dynCfg.timeout || 15, true)
     } catch (e) {
       logger?.warn('[LinkFlow] 动态调度：Bot B站 未登录，跳过本轮')
       return
@@ -60,10 +61,9 @@ class DynamicScheduler {
     const uids = Object.keys(allData)
     if (!uids.length) return
 
-    const timeRange = config.dynamic?.timeRange ?? DYNAMIC_DEFAULT_TIME_RANGE
-    const pushTransmit = config.dynamic?.pushTransmit !== false
-    const sleepMs = (config.dynamic?.sleep || 0) * 1000
-    const useForward = config.dynamic?.forward || false
+    const timeRange = dynCfg.timeRange ?? DYNAMIC_DEFAULT_TIME_RANGE
+    const sleepMs = (dynCfg.sleep || 0) * 1000
+    const useForward = dynCfg.forward || false
 
     logger?.info(`[LinkFlow] 动态轮询开始: ${uids.length} 个 UP，时间窗口 ${timeRange}s`)
 
@@ -105,9 +105,6 @@ class DynamicScheduler {
 
           // 时间窗口过滤
           if (timeRange > 0 && (now - pubTs) > timeRange) continue
-
-          // 转发过滤
-          if (!pushTransmit && formatted.type === 'DYNAMIC_TYPE_FORWARD') continue
 
           // 对每个订阅群/用户推送
           for (const sub of subscribers) {

@@ -87,10 +87,14 @@ subscribe:
   dynamic:
     # 动态推送总开关
     enabled: true
-    # 轮询 cron（秒 分 时 日 月 周），默认每23分钟
-    cron: '0 */23 * * * ?'
+    # 轮询 cron（秒 分 时 日 月 周），默认每10分钟
+    cron: '0 */10 * * * ?'
     # 动态时间窗口（秒），超过此时间的动态不推送
     timeRange: 7200
+    # 是否使用合并转发推送
+    forward: false
+    # 群间推送间隔（秒）
+    sleep: 0
 
   # ===== 直播订阅 =====
   live:

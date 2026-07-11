@@ -1,7 +1,9 @@
 /**
- * guoba/subscribe.js — 直播推送配置
+ * guoba/subscribe.js — 动态/直播订阅配置
  *
  * 对应 defSet/config.yaml 模板变量:
+ *   subscribe_dynamic_enabled, subscribe_dynamic_cron, subscribe_dynamic_timeRange,
+ *   subscribe_dynamic_forward, subscribe_dynamic_sleep,
  *   subscribe_live_enabled, subscribe_live_cron, subscribe_live_endPush,
  *   subscribe_push_forward, subscribe_push_rePush, subscribe_push_sleep
  */
@@ -12,6 +14,11 @@ const configPath = path.join(pluginRoot, 'config', 'config.yaml')
 const defaultConfigPath = path.join(pluginRoot, 'defSet', 'config.yaml')
 
 const defaults = {
+  subscribe_dynamic_enabled: 'true',
+  subscribe_dynamic_cron: '0 */10 * * * ?',
+  subscribe_dynamic_timeRange: '7200',
+  subscribe_dynamic_forward: 'false',
+  subscribe_dynamic_sleep: '0',
   subscribe_live_enabled: 'true',
   subscribe_live_cron: '10 * * * * ?',
   subscribe_live_endPush: 'true',
@@ -22,6 +29,52 @@ const defaults = {
 
 export function getSchema() {
   return [
+    // ==================== 动态订阅 ====================
+    { label: '动态订阅', component: 'SOFT_GROUP_BEGIN' },
+    {
+      field: 'subscribe.dynamic.enabled',
+      label: '动态推送',
+      helpMessage: '开启后定时轮询已订阅 UP 主的动态（视频/图文/文章）',
+      component: 'Switch',
+      required: true,
+      componentProps: { defaultValue: true },
+    },
+    {
+      field: 'subscribe.dynamic.cron',
+      label: '轮询频率',
+      helpMessage: 'cron 表达式（秒 分 时 日 月 周）',
+      bottomHelpMessage: '默认每 10 分钟轮询: 0 */10 * * * ?',
+      component: 'EasyCron',
+      required: true,
+      componentProps: { showSecond: true, defaultValue: '0 */10 * * * ?' },
+    },
+    {
+      field: 'subscribe.dynamic.timeRange',
+      label: '时间窗口（秒）',
+      helpMessage: '超过此时间的动态不再推送',
+      bottomHelpMessage: '默认 7200 秒（2 小时），调大可覆盖更早的动态',
+      component: 'InputNumber',
+      required: true,
+      componentProps: { min: 60, max: 86400, defaultValue: 7200 },
+    },
+    {
+      field: 'subscribe.dynamic.forward',
+      label: '合并转发',
+      helpMessage: '使用合并转发消息发送动态卡片',
+      component: 'Switch',
+      required: true,
+      componentProps: { defaultValue: false },
+    },
+    {
+      field: 'subscribe.dynamic.sleep',
+      label: '群发间隔（秒）',
+      helpMessage: '多群依次推送的间隔时间',
+      bottomHelpMessage: '避免同时推送多群触发风控，默认 0 秒',
+      component: 'InputNumber',
+      required: true,
+      componentProps: { min: 0, max: 30, defaultValue: 0 },
+    },
+
     // ==================== 直播推送 ====================
     { label: '直播推送', component: 'SOFT_GROUP_BEGIN' },
     {

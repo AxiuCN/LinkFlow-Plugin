@@ -141,6 +141,7 @@ export function supportGuoba() {
         const claim = userCfg.incentive?.claim || {}
         const watch = userCfg.incentive?.watch || {}
         const subscribe = userCfg.subscribe || {}
+        const sdyn = subscribe.dynamic || {}
         const slive = subscribe.live || {}
         const spush = subscribe.push || {}
 
@@ -162,6 +163,13 @@ export function supportGuoba() {
           // 全局
           'global.enabled': userCfg.global?.enabled ?? true,
           'login.pollTimeout': userCfg.login?.pollTimeout ?? 180,
+
+          // 动态订阅
+          'subscribe.dynamic.enabled': sdyn.enabled ?? true,
+          'subscribe.dynamic.cron': sdyn.cron ?? '0 */10 * * * ?',
+          'subscribe.dynamic.timeRange': sdyn.timeRange ?? 7200,
+          'subscribe.dynamic.forward': sdyn.forward ?? false,
+          'subscribe.dynamic.sleep': sdyn.sleep ?? 0,
 
           // 直播推送
           'subscribe.live.enabled': slive.enabled ?? true,

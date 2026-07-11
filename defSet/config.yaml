@@ -13,8 +13,21 @@ login:
   # 扫码登录轮询超时（秒）
   pollTimeout: ${login_pollTimeout}
 
-# ---------- 直播推送 ----------
+# ---------- 订阅推送 ----------
 subscribe:
+
+  # ===== 动态订阅 =====
+  dynamic:
+    # 动态推送总开关
+    enabled: ${subscribe_dynamic_enabled}
+    # 轮询 cron（秒 分 时 日 月 周），默认每10分钟
+    cron: ${subscribe_dynamic_cron}
+    # 动态时间窗口（秒），超过此时间的动态不推送
+    timeRange: ${subscribe_dynamic_timeRange}
+    # 是否转发动态
+    forward: ${subscribe_dynamic_forward}
+    # 群间推送间隔（秒）
+    sleep: ${subscribe_dynamic_sleep}
 
   # ===== 直播订阅 =====
   live:
