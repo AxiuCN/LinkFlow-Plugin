@@ -7,14 +7,15 @@ import LiveScheduler from '../modules/livepush/Scheduler.js'
 export class BiliLivePush extends plugin {
   constructor() {
     super({
-      name: 'BiliLivePush',
+      name: '[LinkFlow]直播订阅',
+      dsc: 'B站UP直播订阅推送',
       priority: -114500,
       rule: [
-        { reg: '^#?(全体|匿名)?订阅直播', fnc: 'setLivePush' },
-        { reg: '^#?(全体|匿名)?取消订阅直播', fnc: 'delLivePush' },
-        { reg: '^#?(全体|匿名)?订阅UP',   fnc: 'setLivePushByUid' },
-        { reg: '^#?(全体|匿名)?取消订阅UP',   fnc: 'delLivePushByUid' },
-        { reg: '^#?(本?群|我的?)?订阅(列表|list)?', fnc: 'listLivePush' },
+        { reg: /^#?(全体|匿名)?订阅[bB]站([uU][pP])?直播间\s*\d+/i, fnc: 'setLivePush' },
+        { reg: /^#?(全体|匿名)?取消[bB]站([uU][pP])?直播间\s*\d+/i, fnc: 'delLivePush' },
+        { reg: /^#?(全体|匿名)?订阅[bB]站([uU][pP])?直播\s*\d+/i, fnc: 'setLivePushByUid' },
+        { reg: /^#?(全体|匿名)?取消[bB]站([uU][pP])?直播\s*\d+/i, fnc: 'delLivePushByUid' },
+        { reg: /^#?(本?群|我的?)?直播订阅(列表|list)?/i, fnc: 'listLivePush' },
       ],
     })
 
@@ -146,9 +147,9 @@ export class BiliLivePush extends plugin {
 
   /**
    * 列出订阅
-   * #本群订阅列表 → 当前群订阅
-   * #我的订阅列表 → 个人订阅
-   * 默认 → 发送两个选项供点击
+   * #本群直播订阅列表 → 当前群订阅
+   * #我的直播订阅列表 → 个人订阅
+   * #直播订阅列表 → 无参数时发送两个选项供点击
    */
   async listLivePush(e) {
     const isGroup = e.message_type === 'group'
@@ -178,8 +179,8 @@ export class BiliLivePush extends plugin {
         message: [{ type: 'text', text: cmd }],
         raw_message: cmd,
       })
-      em('#本群订阅列表')
-      em('#我的订阅列表')
+      em('#本群直播订阅列表')
+      em('#我的直播订阅列表')
       return true
     }
 
