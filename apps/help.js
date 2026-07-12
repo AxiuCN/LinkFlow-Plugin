@@ -9,7 +9,7 @@ export class LinkFlowHelp extends plugin {
       event: 'message',
       priority: 500,
       rule: [
-        { reg: /^#(linkflow|LinkFlow|b站|B站)帮助$/i, fnc: 'help' },
+        { reg: /^#(linkflow|LinkFlow|链流|b站|B站)帮助$/i, fnc: 'help' },
       ],
     })
   }

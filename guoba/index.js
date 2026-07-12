@@ -92,7 +92,7 @@ export function supportGuoba() {
   return {
     pluginInfo: {
       name: 'linkflow-plugin',
-      title: 'LinkFlow-Plugin',
+      title: '链流插件',
       description: 'B站综合功能插件，支持UP主直播订阅推送、B站激励计划抢奖励',
       author: ['阿修Axiu'],
       authorLink: ['https://github.com/AxiuCN'],

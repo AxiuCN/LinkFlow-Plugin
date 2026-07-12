@@ -1,6 +1,6 @@
 export const helpCfg = {
   title: '#LinkFlow帮助',
-  subTitle: 'LinkFlow-Plugin v2.0.0'
+  subTitle: '链流插件 v2.0.0'
 }
 
 export const helpList = [
