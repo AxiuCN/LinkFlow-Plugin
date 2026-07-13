@@ -132,6 +132,6 @@ LinkFlow-Plugin/
 
 ## 鸣谢
 
-- [yuki-plugin](https://github.com/yoimiya-kokomi/yuki-plugin) — 动态订阅反爬链路参考
 - [GetLiveAward](https://github.com/yuzeeesama/GetLiveAward) — 激励领取接口参考
 - [bililivePush-plugin](https://github.com/HDTianRu/bililivePush-plugin) — 直播推送功能基础
+- [yuki-plugin](https://github.com/yoimiya-kokomi/yuki-plugin) — 动态订阅反爬链路参考
