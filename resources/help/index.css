@@ -70,29 +70,15 @@ body {
 .help-table .th {
   background: rgba(34, 41, 51, 0.5);
 }
-.help-icon {
-  width: 40px;
-  height: 40px;
-  display: block;
-  position: absolute;
-  border-radius: 5px;
-  left: 6px;
-  top: 12px;
-  transform: scale(0.85);
-  background-image: url("icon.png");
-  background-size: auto;
-}
 .help-title {
   display: block;
   color: #d3bc8e;
   font-size: 16px;
   line-height: 24px;
-  padding-left: 46px;
 }
 .help-desc {
   display: block;
   font-size: 13px;
   line-height: 18px;
   color: #eee;
-  padding-left: 46px;
 }

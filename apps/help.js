@@ -25,17 +25,9 @@ export class LinkFlowHelp extends plugin {
 
         const list = []
         for (const item of group.list) {
-          let css = 'display:none'
-          if (item.icon) {
-            const x = (item.icon - 1) % 10
-            const y = Math.floor((item.icon - 1) / 10)
-            css = `background-position:-${x * 50}px -${y * 50}px`
-          }
-
           list.push({
             title: item.title,
             desc: item.desc,
-            css,
           })
         }
         helpGroup.push({
