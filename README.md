@@ -66,6 +66,8 @@ pnpm install -P --filter LinkFlow-Plugin
 | `#删除激励白名单 @QQ` | 主人 | 从白名单移除 QQ |
 | `#激励白名单` | 主人 | 查看白名单 |
 
+> 详细使用指南：[docs/incentive-guide.md](docs/incentive-guide.md)
+
 ### 通用
 
 | 指令 | 权限 | 说明 |
