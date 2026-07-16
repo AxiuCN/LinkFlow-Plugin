@@ -156,7 +156,10 @@ class DynamicScheduler {
                 // TODO: 合并转发模式
                 await Bot.pickGroup(Number(group_id)).sendMsg([...mentions, img].filter(Boolean))
               } else {
-                await Bot.pickGroup(Number(group_id)).sendMsg([...mentions, '\n', img].filter(Boolean))
+                const msgParts = [...mentions]
+                if (mentions.length > 0) msgParts.push('\n')
+                msgParts.push(img)
+                await Bot.pickGroup(Number(group_id)).sendMsg(msgParts.filter(Boolean))
               }
 
               // 设置去重标记（NX 原子写入）
