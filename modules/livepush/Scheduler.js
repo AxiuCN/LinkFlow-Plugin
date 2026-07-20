@@ -1,3 +1,4 @@
+import fetch from 'node-fetch'
 import moment from 'moment'
 import common from '../../../../lib/common/common.js'
 import { getPluginConfig } from '../../components/config.js'
@@ -72,9 +73,10 @@ class LiveScheduler {
       .filter(id => id !== 99999)
       .map(id => segment.at(id === 0 ? 'all' : id))
 
+    const coverImg = await this._downloadCoverImage(cover_from_user)
+
     const message = [
       ...userMentions,
-      segment.image(cover_from_user),
       `昵称: ${uname}\n`,
       `用户uid: ${uid}\n`,
       `标题: ${title}\n`,
@@ -82,6 +84,7 @@ class LiveScheduler {
       `开播时间: ${moment(live_time).format('YYYY-MM-DD HH:mm:ss')}\n`,
       `直播间地址: https://live.bilibili.com/${room_id}`,
     ]
+    if (coverImg) message.unshift(coverImg)
     // 彩蛋
     const startHour = moment(live_time).hour()
     if (startHour >= 0 && startHour < 6) message.push('\n逆天小子，这个点你还不去睡')
@@ -101,11 +104,14 @@ class LiveScheduler {
    */
   async _sendLiveEnd(groupId, roomInfo, liveDuration, cfg) {
     const { cover_from_user } = roomInfo
+
+    const coverImg = await this._downloadCoverImage(cover_from_user)
+
     const message = [
-      segment.image(cover_from_user),
       '主播下播la~~~~\n',
       `本次直播时长: ${liveDuration}`,
     ]
+    if (coverImg) message.unshift(coverImg)
     // 彩蛋
     const endHour = moment().hour()
     if (endHour >= 0 && endHour < 6) message.push('\n深夜场结束了？')
@@ -116,6 +122,25 @@ class LiveScheduler {
       )
     } else {
       Bot.pickGroup(Number(groupId)).sendMsg(message)
+    }
+  }
+
+  /**
+   * 下载直播间封面图，转为 base64 避免 OneBot 适配器下载超时
+   * @param {string} url
+   * @returns {Promise<object|false>} segment.image 参数，失败返回 false
+   */
+  async _downloadCoverImage(url) {
+    try {
+      const res = await fetch(url, {
+        headers: { Referer: 'https://live.bilibili.com/' },
+        signal: AbortSignal.timeout(50000),
+      })
+      if (!res.ok) return false
+      const buf = Buffer.from(await res.arrayBuffer())
+      return segment.image(buf)
+    } catch {
+      return false
     }
   }
 

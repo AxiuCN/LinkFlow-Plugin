@@ -1,5 +1,6 @@
 import { render } from '../components/render.js'
 import { pluginRoot } from '../components/constants.js'
+import { pluginVersion } from '../components/pluginVersion.js'
 
 export class LinkFlowHelp extends plugin {
   constructor() {
@@ -39,7 +40,7 @@ export class LinkFlowHelp extends plugin {
       const data = {
         helpCfg: {
           title: helpCfg.title || 'LinkFlow 帮助',
-          subTitle: helpCfg.subTitle || 'LinkFlow-Plugin',
+          subTitle: `链流插件 v${pluginVersion}`,
         },
         helpGroup,
       }

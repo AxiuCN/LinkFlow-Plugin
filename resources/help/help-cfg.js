@@ -1,6 +1,6 @@
 export const helpCfg = {
   title: '#LinkFlow帮助',
-  subTitle: '链流插件 v2.0.0'
+  subTitle: '链流插件' // 版本号由 help.js 从 package.json 动态读取
 }
 
 export const helpList = [
